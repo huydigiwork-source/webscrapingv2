@@ -83,12 +83,12 @@ for page in range(1, 101):
                 posted_date = update_times[0].get_text(strip=True)
 
             jobs.append({
-                "Job_Title": title_el.get_text(strip=True),
-                "Company": company_el.get_text(strip=True) if company_el else None,
-                "Salary": salary_el.get_text(strip=True) if salary_el else None,
-                "Location": location_el.get_text(strip=True) if location_el else None,
-                "Posted_Date": posted_date,
-                "Job_Url": job_url
+                "job_title": title_el.get_text(strip=True),
+                "company": company_el.get_text(strip=True) if company_el else None,
+                "salary": salary_el.get_text(strip=True) if salary_el else None,
+                "location": location_el.get_text(strip=True) if location_el else None,
+                "posted_date": posted_date,
+                "job_url": job_url
             })
 
         time.sleep(random.uniform(1.0, 2.0))
