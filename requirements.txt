@@ -6,3 +6,4 @@ datasets
 huggingface_hub
 lxml
 urllib3
+streamlit
