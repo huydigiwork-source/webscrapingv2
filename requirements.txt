@@ -7,3 +7,9 @@ huggingface_hub
 lxml
 urllib3
 streamlit
+matplotlib
+sentence-transformers
+faiss-cpu
+fastapi
+uvicorn
+numpy
