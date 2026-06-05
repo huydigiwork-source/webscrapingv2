@@ -15,7 +15,6 @@ jobs:
 
 scrape:
 
-```
 runs-on: ubuntu-latest
 
 timeout-minutes: 360
@@ -35,4 +34,5 @@ steps:
   - run: python upload_hf.py
     env:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-```
+
+
