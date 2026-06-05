@@ -12,7 +12,7 @@ df = pd.read_parquet("jobs.parquet")
 dataset = Dataset.from_pandas(df)
 
 dataset.push_to_hub(
-    "huydigiwork-source/careerviet-accounting-jobs"
+    "Vincentran/careerviet-accounting-jobs"
 )
 
 print("Upload success")
