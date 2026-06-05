@@ -35,7 +35,7 @@ print("✅ Space ready:", SPACE_ID)
 # 2. FILE LIST (PRODUCTION)
 # =========================
 files = [
-    "app.py",
+    "dashboard.py",
     "api.py",
     "requirements.txt",
     "Dockerfile"
