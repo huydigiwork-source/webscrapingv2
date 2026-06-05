@@ -5,7 +5,7 @@ import os
 
 HF_TOKEN = os.environ["HF_TOKEN"]
 
-login(HF_TOKEN)
+login(token=HF_TOKEN)
 
 df = pd.read_parquet("jobs.parquet")
 
@@ -15,4 +15,4 @@ dataset.push_to_hub(
     "Vincentran/careerviet-accounting-jobs"
 )
 
-print("Upload success")
+print(f"Uploaded {len(df)} rows")

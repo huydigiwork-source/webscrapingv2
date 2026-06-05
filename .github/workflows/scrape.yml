@@ -2,19 +2,20 @@ name: CareerViet Scraper
 
 on:
   push:
-    branches: [ main ]
-
-  schedule:
-    - cron: "0 0 * * *"
+    branches:
+      - main
 
   workflow_dispatch:
+
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -22,13 +23,16 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
 
-      - name: Run scraper
-        run: python scraper.py
+      - name: Run Scraper
+        run: |
+          python scraper.py
 
-      - name: Upload to Hugging Face
+      - name: Upload To HuggingFace
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: python upload_hf.py
+        run: |
+          python upload_hf.py

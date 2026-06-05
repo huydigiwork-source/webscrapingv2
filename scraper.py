@@ -6,78 +6,120 @@ import time
 import random
 
 BASE_URL = "https://careerviet.vn"
-START_URL = "https://careerviet.vn/viec-lam/accounting-k-vi.html"
 
-headers = {
-    "User-Agent": "Mozilla/5.0"
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/137.0.0.0 Safari/537.36"
+    )
 }
 
 jobs = []
-seen = set()
+seen_urls = set()
 
-def get_html(url):
-    try:
-        r = requests.get(url, headers=headers, timeout=10)
-        if r.status_code == 200:
-            return r.text
-    except:
-        return None
-    return None
+# Thử tối đa 100 trang
+for page in range(1, 101):
 
-
-url = START_URL
-page = 0
-
-while url:
-    page += 1
-    print(f"Scraping page {page}: {url}")
-
-    html = get_html(url)
-    if not html:
-        break
-
-    soup = BeautifulSoup(html, "html.parser")
-    cards = soup.select("div.job-item")
-
-    if len(cards) == 0:
-        break
-
-    for card in cards:
-        title_el = card.select_one("a.job_link")
-        company_el = card.select_one("a.company-name")
-        salary_el = card.select_one("div.salary p")
-        location_el = card.select_one("div.location li")
-        times = card.select("div.time time")
-
-        if not title_el:
-            continue
-
-        job_url = urljoin(BASE_URL, title_el["href"])
-
-        if job_url in seen:
-            continue
-        seen.add(job_url)
-
-        jobs.append({
-            "job_title": title_el.text.strip(),
-            "company": company_el.text.strip() if company_el else None,
-            "salary": salary_el.text.strip() if salary_el else None,
-            "location": location_el.text.strip() if location_el else None,
-            "posted_date": times[1].text.strip() if len(times) >= 2 else None,
-            "job_url": job_url
-        })
-
-    # pagination (next button)
-    next_btn = soup.select_one("a.next")
-
-    if next_btn and next_btn.get("href"):
-        url = urljoin(BASE_URL, next_btn["href"])
+    if page == 1:
+        url = "https://careerviet.vn/viec-lam/accounting-k-vi.html"
     else:
+        url = f"https://careerviet.vn/viec-lam/accounting-k-trang-{page}-vi.html"
+
+    print(f"\n========== PAGE {page} ==========")
+    print(url)
+
+    try:
+        response = requests.get(
+            url,
+            headers=HEADERS,
+            timeout=20
+        )
+
+        if response.status_code != 200:
+            print(f"Stop - HTTP {response.status_code}")
+            break
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        cards = soup.select("div.job-item")
+
+        print("Jobs found:", len(cards))
+
+        # Không còn job => hết trang
+        if len(cards) == 0:
+            print("Stop - no jobs found")
+            break
+
+        for card in cards:
+
+            title_el = card.select_one("a.job_link")
+            company_el = card.select_one("a.company-name")
+
+            salary_el = card.select_one(".salary p")
+            location_el = card.select_one(".location li")
+
+            update_times = card.select(".time time")
+
+            if not title_el:
+                continue
+
+            job_url = urljoin(
+                BASE_URL,
+                title_el.get("href", "")
+            )
+
+            # chống trùng
+            if job_url in seen_urls:
+                continue
+
+            seen_urls.add(job_url)
+
+            posted_date = None
+
+            if len(update_times) >= 2:
+                posted_date = update_times[1].get_text(strip=True)
+            elif len(update_times) == 1:
+                posted_date = update_times[0].get_text(strip=True)
+
+            jobs.append({
+                "job_title": title_el.get_text(strip=True),
+                "company": company_el.get_text(strip=True) if company_el else None,
+                "salary": salary_el.get_text(strip=True) if salary_el else None,
+                "location": location_el.get_text(strip=True) if location_el else None,
+                "posted_date": posted_date,
+                "job_url": job_url
+            })
+
+        time.sleep(random.uniform(1.0, 2.0))
+
+    except Exception as e:
+        print("ERROR:", e)
         break
 
-    time.sleep(random.uniform(1.2, 2.5))
+# ======================
+# SAVE DATA
+# ======================
 
 df = pd.DataFrame(jobs)
-df.to_parquet("jobs.parquet", index=False)
 
+print("\n======================")
 print("TOTAL JOBS:", len(df))
+print("======================")
+
+print(df.head())
+
+df.to_parquet(
+    "jobs.parquet",
+    index=False
+)
+
+df.to_csv(
+    "jobs.csv",
+    index=False,
+    encoding="utf-8-sig"
+)
+
+print("\nSaved:")
+print("- jobs.parquet")
+print("- jobs.csv")
