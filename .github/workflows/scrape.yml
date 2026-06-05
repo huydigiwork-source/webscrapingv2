@@ -28,7 +28,7 @@ jobs:
       - name: Run scraper
         run: python scraper.py
 
-      - name: Upload dataset
+      - name: Upload to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python upload_hf.py
