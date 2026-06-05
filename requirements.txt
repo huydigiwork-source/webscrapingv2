@@ -4,3 +4,5 @@ pandas
 pyarrow
 datasets
 huggingface_hub
+lxml
+urllib3
