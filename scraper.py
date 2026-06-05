@@ -2,8 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from urllib.parse import urljoin
-import time
 import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 BASE_URL = "https://careerviet.vn"
 
@@ -19,438 +19,191 @@ jobs = []
 seen_urls = set()
 
 SKILL_LIBRARY = [
-    "excel",
-    "advanced excel",
-    "pivot table",
-    "vlookup",
-    "power query",
-    "sap",
-    "oracle",
-    "erp",
-    "sql",
-    "python",
-    "power bi",
-    "ifrs",
-    "vas",
-    "acca",
-    "cpa",
-    "audit",
-    "tax",
-    "bookkeeping",
-    "accounting",
-    "financial reporting",
-    "forecasting",
-    "budgeting",
-    "english",
-    "communication",
-    "teamwork",
-    "quickbooks",
-    "xero"
+    "excel","advanced excel","pivot table","vlookup","power query",
+    "sap","oracle","erp","sql","python","power bi","ifrs","vas",
+    "acca","cpa","audit","tax","bookkeeping","accounting",
+    "financial reporting","forecasting","budgeting","english",
+    "communication","teamwork","quickbooks","xero"
 ]
 
 
 def extract_skills(text):
-
     text = str(text).lower()
-
-    found = []
-
-    for skill in SKILL_LIBRARY:
-
-        if skill.lower() in text:
-            found.append(skill)
-
+    found = [s for s in SKILL_LIBRARY if s in text]
     return ", ".join(sorted(set(found)))
+
+
+def get_soup(url):
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=15)
+        if r.status_code != 200:
+            return None
+        return BeautifulSoup(r.text, "html.parser")
+    except:
+        return None
 
 
 def get_job_detail(job_url):
 
     result = {
-
         "benefits": None,
-
         "job_description": None,
         "requirements": None,
-
         "market_skill": None,
-
         "industry": None,
         "employment_type": None,
-
         "experience": None,
         "job_level": None,
-
         "deadline": None,
         "updated_date": None,
-
         "degree": None,
         "working_time": None,
-
         "salary_detail": None
-
     }
 
+    soup = get_soup(job_url)
+    if not soup:
+        return result
+
     try:
-
-        response = requests.get(
-            job_url,
-            headers=HEADERS,
-            timeout=20
-        )
-
-        soup = BeautifulSoup(
-            response.text,
-            "html.parser"
-        )
-
-        # ==========================
-        # BENEFITS
-        # ==========================
-
-        welfare_items = soup.select(
-            "ul.welfare-list li"
-        )
-
-        benefits = [
-            x.get_text(strip=True)
-            for x in welfare_items
-        ]
-
+        # benefits
+        benefits = [x.get_text(strip=True) for x in soup.select("ul.welfare-list li")]
         if benefits:
             result["benefits"] = " | ".join(benefits)
 
-        # ==========================
-        # JOB INFO BOX
-        # ==========================
-
+        # info box
         for li in soup.select("div.detail-box li"):
-
             strong = li.select_one("strong")
-
+            p = li.select_one("p")
             if not strong:
                 continue
 
-            label = strong.get_text(
-                " ",
-                strip=True
-            )
-
-            value_el = li.select_one("p")
-
-            value = (
-                value_el.get_text(
-                    " ",
-                    strip=True
-                )
-                if value_el
-                else None
-            )
+            label = strong.get_text(strip=True)
+            value = p.get_text(strip=True) if p else None
 
             if "Ngành nghề" in label:
                 result["industry"] = value
-
             elif "Hình thức" in label:
                 result["employment_type"] = value
-
             elif "Kinh nghiệm" in label:
                 result["experience"] = value
-
             elif "Cấp bậc" in label:
                 result["job_level"] = value
-
             elif "Hết hạn nộp" in label:
                 result["deadline"] = value
-
             elif "Ngày cập nhật" in label:
                 result["updated_date"] = value
 
-        # ==========================
-        # DETAIL BLOCKS
-        # ==========================
-
+        # detail blocks
         for row in soup.select("div.detail-row"):
-
-            title_el = row.select_one(".detail-title")
-
-            if not title_el:
+            title = row.select_one(".detail-title")
+            if not title:
                 continue
 
-            title = title_el.get_text(
-                " ",
-                strip=True
-            )
+            title_text = title.get_text(strip=True)
 
-            # MÔ TẢ CÔNG VIỆC
+            if "Mô tả" in title_text:
+                result["job_description"] = row.get_text(" ", strip=True)
 
-            if "Mô tả" in title:
+            elif "Yêu Cầu" in title_text:
+                req = row.get_text(" ", strip=True)
+                result["requirements"] = req
+                result["market_skill"] = extract_skills(req)
 
-                result["job_description"] = row.get_text(
-                    " ",
-                    strip=True
-                )
-
-            # YÊU CẦU CÔNG VIỆC
-
-            elif "Yêu Cầu" in title:
-
-                req_text = row.get_text(
-                    " ",
-                    strip=True
-                )
-
-                result["requirements"] = req_text
-
-                result["market_skill"] = extract_skills(
-                    req_text
-                )
-
-            # THÔNG TIN KHÁC
-
-            elif "Thông tin khác" in title:
-
+            elif "Thông tin khác" in title_text:
                 for li in row.select("li"):
-
-                    text = li.get_text(
-                        " ",
-                        strip=True
-                    )
-
+                    text = li.get_text(strip=True)
                     if "Bằng cấp" in text:
                         result["degree"] = text
-
                     elif "Thời gian làm việc" in text:
                         result["working_time"] = text
-
                     elif "Lương" in text:
                         result["salary_detail"] = text
 
         return result
 
-    except Exception as e:
-
-        print(
-            "Detail Error:",
-            job_url,
-            e
-        )
-
+    except:
         return result
 
 
-# ==================================
-# LIST PAGE SCRAPER
-# ==================================
+# =========================
+# LIST SCRAPER
+# =========================
 
 for page in range(1, 101):
 
-    if page == 1:
-        url = "https://careerviet.vn/viec-lam/accounting-k-vi.html"
-    else:
-        url = (
-            f"https://careerviet.vn/"
-            f"viec-lam/accounting-k-trang-{page}-vi.html"
-        )
+    url = (
+        "https://careerviet.vn/viec-lam/accounting-k-vi.html"
+        if page == 1
+        else f"https://careerviet.vn/viec-lam/accounting-k-trang-{page}-vi.html"
+    )
 
-    print(f"\n========== PAGE {page} ==========")
-    print(url)
+    print(f"PAGE {page}")
 
-    try:
-
-        response = requests.get(
-            url,
-            headers=HEADERS,
-            timeout=20
-        )
-
-        if response.status_code != 200:
-
-            print(
-                f"Stop - HTTP {response.status_code}"
-            )
-
-            break
-
-        soup = BeautifulSoup(
-            response.text,
-            "html.parser"
-        )
-
-        cards = soup.select(
-            "div.job-item"
-        )
-
-        print(
-            "Jobs found:",
-            len(cards)
-        )
-
-        if len(cards) == 0:
-
-            print(
-                "Stop - no jobs found"
-            )
-
-            break
-
-        for card in cards:
-
-            title_el = card.select_one(
-                "a.job_link"
-            )
-
-            company_el = card.select_one(
-                "a.company-name"
-            )
-
-            salary_el = card.select_one(
-                ".salary p"
-            )
-
-            location_el = card.select_one(
-                ".location li"
-            )
-
-            update_times = card.select(
-                ".time time"
-            )
-
-            if not title_el:
-                continue
-
-            job_url = urljoin(
-                BASE_URL,
-                title_el.get(
-                    "href",
-                    ""
-                )
-            )
-
-            if job_url in seen_urls:
-                continue
-
-            seen_urls.add(
-                job_url
-            )
-
-            posted_date = None
-
-            if len(update_times) >= 2:
-
-                posted_date = (
-                    update_times[1]
-                    .get_text(
-                        strip=True
-                    )
-                )
-
-            elif len(update_times) == 1:
-
-                posted_date = (
-                    update_times[0]
-                    .get_text(
-                        strip=True
-                    )
-                )
-
-            jobs.append({
-
-                "job_title":
-                    title_el.get_text(
-                        strip=True
-                    ),
-
-                "company":
-                    company_el.get_text(
-                        strip=True
-                    ) if company_el else None,
-
-                "salary":
-                    salary_el.get_text(
-                        strip=True
-                    ) if salary_el else None,
-
-                "location":
-                    location_el.get_text(
-                        strip=True
-                    ) if location_el else None,
-
-                "posted_date":
-                    posted_date,
-
-                "job_url":
-                    job_url
-
-            })
-
-        time.sleep(
-            random.uniform(
-                1,
-                2
-            )
-        )
-
-    except Exception as e:
-
-        print(
-            "ERROR:",
-            e
-        )
-
+    soup = get_soup(url)
+    if not soup:
         break
 
+    cards = soup.select("div.job-item")
 
-# ==================================
-# DETAIL SCRAPER
-# ==================================
+    if not cards:
+        break
 
-print("\nFetching job details...")
+    for card in cards:
+        title = card.select_one("a.job_link")
+        company = card.select_one("a.company-name")
+        salary = card.select_one(".salary p")
+        location = card.select_one(".location li")
+        times = card.select(".time time")
 
-for idx, job in enumerate(jobs):
+        if not title:
+            continue
 
-    print(
-        f"{idx + 1}/{len(jobs)}",
-        job["job_title"]
-    )
+        job_url = urljoin(BASE_URL, title.get("href", ""))
 
-    detail = get_job_detail(
-        job["job_url"]
-    )
+        if job_url in seen_urls:
+            continue
 
-    job.update(
-        detail
-    )
+        seen_urls.add(job_url)
 
-    time.sleep(
-        random.uniform(
-            0.3,
-            0.8
-        )
-    )
+        posted = None
+        if len(times) >= 1:
+            posted = times[-1].get_text(strip=True)
+
+        jobs.append({
+            "job_title": title.get_text(strip=True),
+            "company": company.get_text(strip=True) if company else None,
+            "salary": salary.get_text(strip=True) if salary else None,
+            "location": location.get_text(strip=True) if location else None,
+            "posted_date": posted,
+            "job_url": job_url
+        })
+
+# =========================
+# DETAIL (FAST THREADPOOL)
+# =========================
+
+print("Fetching details...")
+
+def worker(job):
+    job.update(get_job_detail(job["job_url"]))
+    return job
+
+with ThreadPoolExecutor(max_workers=10) as ex:
+    futures = [ex.submit(worker, j) for j in jobs]
+
+    for i, f in enumerate(as_completed(futures)):
+        f.result()
+        print(f"{i+1}/{len(jobs)} done")
 
 
-# ==================================
-# SAVE DATA
-# ==================================
+# =========================
+# SAVE
+# =========================
 
 df = pd.DataFrame(jobs)
 
-print("\n======================")
-print("TOTAL JOBS:", len(df))
-print("======================")
+df.to_parquet("jobs.parquet", index=False)
+df.to_csv("jobs.csv", index=False, encoding="utf-8-sig")
 
-print(df.head())
-
-df.to_parquet(
-    "jobs.parquet",
-    index=False
-)
-
-df.to_csv(
-    "jobs.csv",
-    index=False,
-    encoding="utf-8-sig"
-)
-
-print("\nSaved:")
-print("- jobs.parquet")
-print("- jobs.csv")
+print("DONE:", len(df))
