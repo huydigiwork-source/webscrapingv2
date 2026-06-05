@@ -12,3 +12,4 @@ jobs.parquet
 
 *.csv
 *.parquet
+*.bat
