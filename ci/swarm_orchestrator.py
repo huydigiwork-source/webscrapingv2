@@ -1,17 +1,6 @@
 import subprocess
 
 
-def changed_files():
-
-    result = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
-        capture_output=True,
-        text=True
-    )
-
-    return result.stdout.splitlines()
-
-
 def run(cmd):
 
     print(f"\n▶ {cmd}")
@@ -25,11 +14,28 @@ def run(cmd):
         raise RuntimeError(cmd)
 
 
-def main():
+def get_commit_message():
 
-    files = changed_files()
+    result = subprocess.run(
+        ["git", "log", "-1", "--pretty=%B"],
+        capture_output=True,
+        text=True
+    )
 
-    print("Changed Files:")
+    return result.stdout.strip()
+
+
+def auto_mode():
+
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+        capture_output=True,
+        text=True
+    )
+
+    files = result.stdout.splitlines()
+
+    print("\nChanged Files:")
     print(files)
 
     scraper_changed = any(
@@ -45,7 +51,8 @@ def main():
         x in files
         for x in [
             "dashboard.py",
-            "requirements.txt"
+            "requirements.txt",
+            "deploy_space.py"
         ]
     )
 
@@ -65,6 +72,45 @@ def main():
     if not scraper_changed and not dashboard_changed:
 
         print("\nNothing to deploy")
+
+
+def main():
+
+    commit_msg = get_commit_message()
+
+    print("\nCommit:")
+    print(commit_msg)
+
+    if "[dashboard]" in commit_msg:
+
+        print("\nMODE = DASHBOARD")
+
+        run("python deploy_space.py")
+
+        return
+
+    if "[scrape]" in commit_msg:
+
+        print("\nMODE = SCRAPE")
+
+        run("python scraper.py")
+        run("python upload_hf.py")
+
+        return
+
+    if "[full]" in commit_msg:
+
+        print("\nMODE = FULL")
+
+        run("python scraper.py")
+        run("python upload_hf.py")
+        run("python deploy_space.py")
+
+        return
+
+    print("\nMODE = AUTO")
+
+    auto_mode()
 
 
 if __name__ == "__main__":

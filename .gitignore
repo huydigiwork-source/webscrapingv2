@@ -2,14 +2,10 @@
 **pycache**/
 *.pyc
 
-data/jobs.csv
-data/jobs.parquet
-
 .env
 
 .idea/
 .vscode/
 
 *.csv
-*.parquet
 *.bat

@@ -4,7 +4,7 @@ from huggingface_hub import HfApi
 HF_TOKEN = os.getenv("HF_TOKEN")
 DATASET_ID = os.getenv("HF_DATASET_ID")
 
-PARQUET_FILE = "data/jobs.parquet"
+PARQUET_FILE = "jobs.parquet"
 
 if not HF_TOKEN:
     raise RuntimeError("Missing HF_TOKEN")
