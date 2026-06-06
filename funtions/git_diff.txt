@@ -1,6 +1,0 @@
-D	Funtions/.gitignore
-D	Funtions/changes.txt
-M	Funtions/git_diff.txt
-R100	ci/agents/DEPLOYER.py	ci/__init__.py
-A	ci/agents/__init__.py
-A	ci/agents/deployer.py
