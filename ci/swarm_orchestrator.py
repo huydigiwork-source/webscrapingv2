@@ -1,39 +1,71 @@
-import os
-from ci.agents.analyzer import analyze_changes
-from ci.agents.risk_agent import evaluate_risk
-from ci.agents.fix_agent import generate_fix
-from ci.agents.validator import validate_fix
-from ci.agents.deployer import deploy
+import subprocess
 
 
-def get_diff():
-    os.system("git diff HEAD > diff.txt")
-    return open("diff.txt", "r").read()
+def changed_files():
+
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+        capture_output=True,
+        text=True
+    )
+
+    return result.stdout.splitlines()
 
 
-def run_swarm():
-    diff = get_diff()
+def run(cmd):
 
-    print("\n🧠 ANALYZING...")
-    analysis = analyze_changes(diff)
+    print(f"\n▶ {cmd}")
 
-    print("\n⚠️ RISK EVALUATION...")
-    risk = evaluate_risk(analysis)
+    result = subprocess.run(
+        cmd,
+        shell=True
+    )
 
-    print("\n🔧 GENERATING FIX...")
-    fix = generate_fix(risk, diff)
+    if result.returncode != 0:
+        raise RuntimeError(cmd)
 
-    print("\n🧪 VALIDATING FIX...")
-    if not validate_fix(fix):
-        print("❌ FIX INVALID → BLOCK DEPLOY")
-        return False
 
-    print("\n🚀 DEPLOYING...")
-    deploy()
+def main():
 
-    print("\n✅ SWARM COMPLETE")
-    return True
+    files = changed_files()
+
+    print("Changed Files:")
+    print(files)
+
+    scraper_changed = any(
+        x in files
+        for x in [
+            "scraper.py",
+            "skills.py",
+            "hf_prepare_data.py"
+        ]
+    )
+
+    dashboard_changed = any(
+        x in files
+        for x in [
+            "dashboard.py",
+            "requirements.txt"
+        ]
+    )
+
+    if scraper_changed:
+
+        print("\nDATA PIPELINE")
+
+        run("python scraper.py")
+        run("python upload_hf.py")
+
+    if dashboard_changed:
+
+        print("\nSPACE DEPLOY")
+
+        run("python deploy_space.py")
+
+    if not scraper_changed and not dashboard_changed:
+
+        print("\nNothing to deploy")
 
 
 if __name__ == "__main__":
-    run_swarm()
+    main()

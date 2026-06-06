@@ -1,10 +1,22 @@
-import os
+import subprocess
 
-def deploy():
-    print("Pushing to GitHub + Hugging Face...")
 
-    os.system("git add .")
-    os.system('git commit -m "auto: swarm deploy" || true')
-    os.system("git push origin main || true")
+def run(cmd):
 
-    print("Deploy triggered")
+    result = subprocess.run(
+        cmd,
+        shell=True
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(cmd)
+
+
+def deploy_dataset():
+
+    run("python upload_hf.py")
+
+
+def deploy_space():
+
+    run("python deploy_space.py")
