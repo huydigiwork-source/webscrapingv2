@@ -2,8 +2,8 @@
 **pycache**/
 *.pyc
 
-Save Data/jobs.csv
-Save Data/jobs.parquet
+Data/jobs.csv
+Data/jobs.parquet
 
 .env
 

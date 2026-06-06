@@ -1,6 +1,0 @@
-.github/workflows/autonomous.yml
-.gitignore
-ci/execution.py
-dashboard.py
-deploy_space.py
-upload_hf.py

@@ -13,8 +13,8 @@ if not SPACE_ID:
 api = HfApi(token=HF_TOKEN)
 
 
-def deploy_space():
-    print("🚀 Deploying Hugging Face Space...")
+def deploy():
+    print("Deploying Space...")
 
     api.upload_folder(
         folder_path=".",
@@ -22,12 +22,8 @@ def deploy_space():
         repo_type="space"
     )
 
-    print("✅ Space uploaded")
-
-    # VERIFY DEPLOY
-    info = api.space_info(SPACE_ID)
-    print(f"🔎 Space status: {info.id}")
+    print("Space deployed OK")
 
 
 if __name__ == "__main__":
-    deploy_space()
+    deploy()
