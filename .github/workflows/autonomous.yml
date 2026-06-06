@@ -25,4 +25,5 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_DATASET_ID: ${{ secrets.HF_DATASET_ID }}
           HF_SPACE_ID: ${{ secrets.HF_SPACE_ID }}
-        run: PYTHONPATH=. python ci/orchestrator.py
+        run: |
+          PYTHONPATH=. python ci/orchestrator.py
