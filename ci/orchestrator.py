@@ -1,49 +1,83 @@
+# ci/orchestrator.py
+
 import os
 from ci.propagation_engine import DependencyGraph
 from ci.planner import ExecutionPlanner
 from ci.env_autobuild import build_env
 
+
 def get_changed_files():
     os.system("git diff --name-only HEAD~1 HEAD > changes.txt")
 
-    with open("changes.txt") as f:
-        return f.read().splitlines()
+    try:
+        with open("changes.txt", "r") as f:
+            return [line.strip() for line in f.readlines()]
+    except:
+        return []
 
 
+def run_command(cmd):
+    print(f"\n▶ {cmd}")
+    result = os.system(cmd)
+    if result != 0:
+        print(f"❌ Command failed: {cmd}")
+    return result
+
+
+# =========================
+# 1. DETECT CHANGES
+# =========================
 changed_files = get_changed_files()
 
-# 1. IMPACT DETECTION
+print("\n===== CHANGED FILES =====")
+print(changed_files)
+
+# =========================
+# 2. PROPAGATION ENGINE
+# =========================
 graph = DependencyGraph()
 impacts = graph.get_impacts(changed_files)
 
-# 2. PLAN GENERATION
+print("\n===== IMPACTS =====")
+print(impacts)
+
+# =========================
+# 3. EXECUTION PLAN
+# =========================
 planner = ExecutionPlanner()
 plan = planner.build_plan(impacts)
 
-print("CHANGED:", changed_files)
-print("IMPACTS:", impacts)
-print("PLAN:", plan)
+print("\n===== EXECUTION PLAN =====")
+print(plan)
 
-# 3. ENV AUTO SYNC
+# =========================
+# 4. ENVIRONMENT LAYER
+# =========================
 if plan["rebuild_env"]:
+    print("\n🧪 Rebuilding environment...")
     build_env(changed_files)
-    os.system("pip install -r requirements.auto.txt")
+    run_command("pip install -r requirements.auto.txt")
 
-# 4. EXECUTION FLOW
+# =========================
+# 5. DATA PIPELINE
+# =========================
 if plan["run_scraper"]:
-    os.system("python scraper.py")
+    run_command("python scraper.py")
 
 if plan["run_pipeline"]:
-    os.system("python run_pipeline.py")
+    run_command("python run_pipeline.py")
 
 if plan["run_upload"]:
-    os.system("python upload_hf.py")
+    run_command("python upload_hf.py")
 
-# 5. CRITICAL FIX: ALWAYS SYNC UI + DATA DEPLOY
-if plan["run_dashboard"] or plan["run_upload"]:
-    plan["run_deploy"] = True
+# =========================
+# 6. UI + DEPLOY LAYER
+# =========================
+if plan["run_dashboard"]:
+    print("\n🎨 Dashboard updated")
 
-if plan["run_deploy"]:
-    os.system("python deploy_space.py")
+# ALWAYS SAFE RULE (CRITICAL FIX)
+if plan["run_deploy"] or plan["run_upload"] or plan["run_dashboard"]:
+    run_command("python deploy_space.py")
 
-print("PIPELINE COMPLETE")
+print("\n===== PIPELINE COMPLETE =====")

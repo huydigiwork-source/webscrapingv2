@@ -1,38 +1,53 @@
-import ast
+# ci/planner.py
 
-def extract_imports(file_path):
-    with open(file_path, "r") as f:
-        tree = ast.parse(f.read())
+class ExecutionPlanner:
+    """
+    Convert system impacts → execution plan
+    """
 
-    imports = set()
+    def build_plan(self, impacts):
+        plan = {
+            "run_scraper": False,
+            "run_pipeline": False,
+            "run_upload": False,
+            "run_dashboard": False,
+            "run_deploy": False,
+            "rebuild_env": False
+        }
 
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for n in node.names:
-                imports.add(n.name.split(".")[0])
+        # =========================
+        # DATA LAYER
+        # =========================
+        if "data" in impacts:
+            plan["run_scraper"] = True
+            plan["run_pipeline"] = True
+            plan["run_upload"] = True
 
-        if isinstance(node, ast.ImportFrom):
-            if node.module:
-                imports.add(node.module.split(".")[0])
+        # =========================
+        # UI LAYER
+        # =========================
+        if "ui" in impacts:
+            plan["run_dashboard"] = True
+            plan["run_deploy"] = True
 
-    return imports
+        # =========================
+        # ENV LAYER
+        # =========================
+        if "env" in impacts:
+            plan["rebuild_env"] = True
+            plan["run_deploy"] = True
 
+        # =========================
+        # PIPELINE LAYER
+        # =========================
+        if "pipeline" in impacts:
+            plan["run_scraper"] = True
+            plan["run_pipeline"] = True
 
-def build_env(files):
-    all_imports = set()
+        # =========================
+        # DEPLOY IS GLOBAL SAFE RULE
+        # =========================
+        if "deploy" in impacts:
+            plan["run_deploy"] = True
 
-    for f in files:
-        try:
-            all_imports |= extract_imports(f)
-        except:
-            pass
-
-    core = {"os", "sys", "json", "time", "math", "ast"}
-
-    libs = sorted(list(all_imports - core))
-
-    with open("requirements.auto.txt", "w") as f:
-        for lib in libs:
-            f.write(lib + "\n")
-
-    print("AUTO ENV GENERATED")
+        return plan

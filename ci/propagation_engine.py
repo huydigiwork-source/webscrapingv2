@@ -1,46 +1,34 @@
-import os
-import ast
-from collections import defaultdict
+# ci/propagation_engine.py
 
-class AutoPilotCI:
+class DependencyGraph:
+    """
+    Maps file changes → system impacts
+    Used by CI/CD orchestrator to decide what to run
+    """
 
     def __init__(self):
-        self.change_map = {
-            "scraper": ["scraper.py"],
-            "data": ["jobs.parquet", "pipeline/", "upload_hf.py"],
-            "dashboard": ["dashboard.py", "requirements.txt"],
-            "env": ["*.py"]
+        # file → impacted components
+        self.map = {
+            "dashboard.py": ["ui", "deploy"],
+            "requirements.txt": ["env", "deploy"],
+            "scraper.py": ["data", "pipeline", "deploy"],
+            "upload_hf.py": ["data", "deploy"],
+            "jobs.parquet": ["data", "ui", "deploy"],
+            "ci/": ["pipeline", "deploy"]
         }
 
-    def detect_changes(self):
-        os.system("git diff --name-only HEAD~1 HEAD > changes.txt")
+    def get_impacts(self, changed_files):
+        """
+        Convert changed files → impacted systems
+        """
+        impacts = set()
 
-        with open("changes.txt", "r") as f:
-            changed = f.read().splitlines()
+        for file in changed_files:
+            for key in self.map.keys():
 
-        return changed
+                # match exact file or folder prefix
+                if file == key or file.startswith(key):
+                    for impact in self.map[key]:
+                        impacts.add(impact)
 
-    def infer_intent(self, changed_files):
-        intent = {
-            "run_scraper": False,
-            "run_pipeline": False,
-            "run_dashboard": False,
-            "update_env": False
-        }
-
-        for f in changed_files:
-
-            if "scraper.py" in f:
-                intent["run_scraper"] = True
-                intent["run_pipeline"] = True
-
-            if "upload_hf.py" in f or "jobs.parquet" in f:
-                intent["run_pipeline"] = True
-
-            if "dashboard.py" in f:
-                intent["run_dashboard"] = True
-
-            if f.endswith(".py"):
-                intent["update_env"] = True
-
-        return intent
+        return list(impacts)
