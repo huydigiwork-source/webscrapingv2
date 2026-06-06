@@ -2,26 +2,32 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   schedule:
     - cron: "0 */6 * * *"
 
 jobs:
-  run:
+  run-pipeline:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      # 1. Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
+      # 2. Setup Python
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
+      # 3. Install dependencies (IMPORTANT FIX)
       - name: Install dependencies
         run: |
-          pip install pandas pyarrow huggingface_hub streamlit
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
+      # 4. Run CI pipeline
       - name: Run pipeline
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
