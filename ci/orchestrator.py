@@ -1,8 +1,14 @@
-# ci/orchestrator.py
-
 import os
-from ci.propagation_engine import DependencyGraph
-from ci.planner import ExecutionPlanner
+
+
+DEPLOY_TRIGGERS = {
+    "dashboard.py",
+    "scraper.py",
+    "upload_hf.py",
+    "requirements.txt",
+    "run_pipeline.py",
+    "jobs.parquet"
+}
 
 
 def get_changed_files():
@@ -15,52 +21,32 @@ def get_changed_files():
         return []
 
 
+def should_deploy(changed_files):
+    return any(
+        any(trigger in file for trigger in DEPLOY_TRIGGERS)
+        for file in changed_files
+    )
+
+
 def run(cmd):
     print(f"\n▶ {cmd}")
     return os.system(cmd)
 
 
 # =========================
-# 1. GET CHANGES
+# 1. Detect changes
 # =========================
 changed_files = get_changed_files()
+
 print("CHANGED FILES:", changed_files)
 
 # =========================
-# 2. PROPAGATION ENGINE
+# 2. SIMPLE RULE ENGINE
 # =========================
-graph = DependencyGraph()
-impacts = graph.get_impacts(changed_files)
-
-print("IMPACTS:", impacts)
-
-# =========================
-# 3. PLANNER
-# =========================
-planner = ExecutionPlanner()
-plan = planner.build_plan(impacts)
-
-print("PLAN:", plan)
-
-# =========================
-# 4. EXECUTION LAYER
-# =========================
-if plan["run_scraper"]:
-    run("python scraper.py")
-
-if plan["run_pipeline"]:
-    run("python run_pipeline.py")
-
-if plan["run_upload"]:
-    run("python upload_hf.py")
-
-if plan["run_dashboard"]:
-    print("Dashboard updated")
-
-# =========================
-# 5. DEPLOY RULE (UNIFIED)
-# =========================
-if plan["run_deploy"] or plan["run_upload"] or plan["run_dashboard"]:
+if should_deploy(changed_files):
+    print("\n🚀 Changes detected → Deploying HF Space")
     run("python deploy_space.py")
+else:
+    print("\n🟡 No deploy-related changes → skip deploy")
 
-print("\nPIPELINE COMPLETE")
+print("\nDONE")

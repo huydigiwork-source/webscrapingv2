@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 jobs:
-  autopilot:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,6 +17,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run CI Pipeline
+      - name: Run Deploy Logic
         run: |
           PYTHONPATH=. python -m ci.orchestrator
