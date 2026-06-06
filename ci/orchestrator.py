@@ -1,6 +1,5 @@
 import os
 
-# FILE TRIGGER MAP (SINGLE SOURCE OF TRUTH)
 DEPLOY_FILES = {
     "dashboard.py",
     "scraper.py",
@@ -12,11 +11,7 @@ DEPLOY_FILES = {
 
 
 def get_changed_files():
-    """
-    Safe Git diff (works even first commit)
-    """
     os.system("git fetch --prune --unshallow 2>/dev/null || true")
-
     os.system("git diff --name-only HEAD^ HEAD > changes.txt 2>/dev/null || git diff --name-only HEAD > changes.txt")
 
     try:
@@ -39,20 +34,20 @@ def run(cmd):
 
 
 # =========================
-# MAIN PIPELINE
+# MAIN FLOW
 # =========================
 changed_files = get_changed_files()
 
 print("CHANGED FILES:", changed_files)
 
 if should_deploy(changed_files):
-    print("\n🚀 DEPLOY TRIGGERED")
+    print("\n🚀 DEPLOY STARTED")
 
     run("python scraper.py")
     run("python upload_hf.py")
     run("python deploy_space.py")
 
 else:
-    print("\n🟡 No deploy needed")
+    print("\n🟡 No deployment needed")
 
 print("\nDONE")

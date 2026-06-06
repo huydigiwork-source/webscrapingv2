@@ -23,6 +23,9 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Run CI Orchestrator
+      # 🔥 IMPORTANT: inject secret
+      - name: Run Pipeline
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           PYTHONPATH=. python ci/orchestrator.py

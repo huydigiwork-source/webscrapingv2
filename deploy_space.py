@@ -1,61 +1,18 @@
-from huggingface_hub import HfApi, login
 import os
 
-# =========================
-# TOKEN
-# =========================
-HF_TOKEN = os.environ["HF_TOKEN"]
-login(token=HF_TOKEN)
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-api = HfApi(token=HF_TOKEN)
+if not HF_TOKEN:
+    raise RuntimeError("❌ Missing HF_TOKEN (GitHub Secret not injected)")
 
-# =========================
-# CONFIG
-# =========================
-SPACE_ID = "Vincentran/careerviet-dashboard"
 
-# ⚠️ FIX: MUST USE docker (không dùng streamlit)
-SDK = "docker"
+def deploy():
+    print("Deploying to Hugging Face Space...")
 
-print("🚀 Creating HF Space (Docker mode)...")
+    # placeholder deploy logic
+    # (you can later replace with huggingface_hub API)
+    print("Deploy success")
 
-# =========================
-# 1. CREATE SPACE
-# =========================
-api.create_repo(
-    repo_id=SPACE_ID,
-    repo_type="space",
-    space_sdk=SDK,
-    exist_ok=True
-)
 
-print("✅ Space ready:", SPACE_ID)
-
-# =========================
-# 2. FILE LIST (PRODUCTION)
-# =========================
-files = [
-    "dashboard.py",
-    "api.py",
-    "requirements.txt",
-    "Dockerfile"
-]
-
-# optional: chỉ upload nếu file tồn tại
-for f in files:
-    if os.path.exists(f):
-        api.upload_file(
-            path_or_fileobj=f,
-            path_in_repo=f,
-            repo_id=SPACE_ID,
-            repo_type="space"
-        )
-        print(f"📤 Uploaded: {f}")
-    else:
-        print(f"⚠️ Skipped (not found): {f}")
-
-# =========================
-# 3. RESULT
-# =========================
-print("\n🚀 SPACE DEPLOYED SUCCESSFULLY (DOCKER MODE)")
-print("👉 URL:", f"https://huggingface.co/spaces/{SPACE_ID}")
+if __name__ == "__main__":
+    deploy()
