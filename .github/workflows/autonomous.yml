@@ -1,4 +1,4 @@
-name: Autonomous CI/CD System
+name: Unified CI/CD System
 
 on:
   push:
@@ -9,14 +9,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Run Deploy Logic
+      - name: Install dependencies
         run: |
-          PYTHONPATH=. python -m ci.orchestrator
+          pip install -r requirements.txt
+
+      - name: Run CI Orchestrator
+        run: |
+          PYTHONPATH=. python ci/orchestrator.py

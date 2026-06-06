@@ -1,18 +1,27 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import numpy as np
 
 # =========================
-# CONFIG UI
+# CONFIG
 # =========================
 st.set_page_config(
-    page_title="Career Intelligence Dashboard",
+    page_title="Career Intelligence Platform",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-st.title("🚀 Career Intelligence Dashboard")
+st.markdown(
+    """
+    <style>
+    .main {background-color: #0e1117;}
+    h1 {color: #4F8BF9;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.title("🚀 Career Intelligence Platform")
 
 # =========================
 # LOAD DATA
@@ -22,14 +31,18 @@ def load_data():
     try:
         df = pd.read_parquet("jobs.parquet")
     except:
-        # fallback demo data
         df = pd.DataFrame({
             "title": ["Data Analyst", "Backend Dev", "AI Engineer", "Business Analyst"],
             "company": ["A", "B", "C", "D"],
-            "platform": ["linkedin", "career", "linkedin", "career"],
+            "platform": ["linkedin", "itviec", "linkedin", "career"],
             "location": ["Vietnam", "HCM", "HN", "Vietnam"],
-            "skills": [["SQL", "Python"], ["Java"], ["AI", "Python"], ["Excel"]],
-            "url": ["https://job1.com", "https://job2.com", "https://job3.com", "https://job4.com"]
+            "skills": [["SQL"], ["Java"], ["AI"], ["Excel"]],
+            "url": [
+                "https://job1.com",
+                "https://job2.com",
+                "https://job3.com",
+                "https://job4.com"
+            ]
         })
     return df
 
@@ -40,102 +53,87 @@ df = load_data()
 # =========================
 st.sidebar.header("🎛 Filters")
 
-platform_filter = st.sidebar.multiselect(
+platform = st.sidebar.multiselect(
     "Platform",
-    options=df["platform"].unique(),
+    df["platform"].unique(),
     default=df["platform"].unique()
 )
 
-location_filter = st.sidebar.multiselect(
+location = st.sidebar.multiselect(
     "Location",
-    options=df["location"].unique(),
+    df["location"].unique(),
     default=df["location"].unique()
 )
 
-filtered_df = df[
-    (df["platform"].isin(platform_filter)) &
-    (df["location"].isin(location_filter))
+filtered = df[
+    (df["platform"].isin(platform)) &
+    (df["location"].isin(location))
 ]
 
 # =========================
-# KPI SECTION
+# KPI CARDS
 # =========================
 col1, col2, col3 = st.columns(3)
 
-col1.metric("📊 Total Jobs", len(filtered_df))
-col2.metric("🏢 Companies", filtered_df["company"].nunique())
-col3.metric("🌐 Platforms", filtered_df["platform"].nunique())
+col1.metric("📊 Jobs", len(filtered))
+col2.metric("🏢 Companies", filtered["company"].nunique())
+col3.metric("🌐 Platforms", filtered["platform"].nunique())
 
 st.markdown("---")
 
 # =========================
-# CHART 1: JOBS BY PLATFORM
+# CHARTS SECTION
 # =========================
-col1, col2 = st.columns(2)
+c1, c2 = st.columns(2)
 
-with col1:
+with c1:
     fig1 = px.bar(
-        filtered_df["platform"].value_counts().reset_index(),
+        filtered["platform"].value_counts().reset_index(),
         x="index",
         y="platform",
-        title="Jobs by Platform",
-        labels={"index": "Platform", "platform": "Count"}
+        title="Jobs by Platform"
     )
     st.plotly_chart(fig1, use_container_width=True)
 
-# =========================
-# CHART 2: JOBS BY LOCATION
-# =========================
-with col2:
+with c2:
     fig2 = px.pie(
-        filtered_df,
+        filtered,
         names="location",
         title="Jobs by Location"
     )
     st.plotly_chart(fig2, use_container_width=True)
 
 # =========================
-# FORECASTING SIMPLE MODEL
+# TREND (SIMPLE INSIGHT)
 # =========================
-st.subheader("📈 Simple Job Trend Forecast (Demo)")
+st.subheader("📈 Market Trend Snapshot")
 
-trend = np.arange(len(filtered_df))
-forecast = trend * 1.5 + np.random.randint(0, 3, len(filtered_df))
-
-fig3 = px.line(
-    x=trend,
-    y=forecast,
-    title="Forecasted Job Growth Trend"
-)
+trend = filtered.groupby("platform").size().reset_index(name="count")
+fig3 = px.line(trend, x="platform", y="count", markers=True)
 
 st.plotly_chart(fig3, use_container_width=True)
 
 # =========================
-# AI INSIGHT PLACEHOLDER
+# INSIGHT BOX
 # =========================
-st.subheader("🧠 AI Market Insight")
+st.subheader("🧠 AI Insight (Static Module)")
 
 st.info("""
-- Demand cao nhất: Data-related roles
+- Data & AI roles đang tăng trưởng mạnh
 - LinkedIn chiếm phần lớn job postings
-- Python + SQL là skill xuất hiện nhiều nhất
+- SQL + Python là core skill phổ biến nhất
 """)
-
-st.caption("⚡ AI module can be connected later (LLM / API)")
 
 # =========================
 # JOB TABLE
 # =========================
 st.subheader("📄 Job Listings")
 
-def make_clickable(url):
-    return f"[Apply]({url})"
-
-display_df = filtered_df.copy()
-display_df["apply"] = display_df["url"].apply(make_clickable)
+table = filtered.copy()
+table["apply"] = table["url"].apply(lambda x: f"[Apply]({x})")
 
 st.dataframe(
-    display_df[["title", "company", "platform", "location", "apply"]],
+    table[["title", "company", "platform", "location", "apply"]],
     use_container_width=True
 )
 
