@@ -1,4 +1,4 @@
-name: Unified CI/CD System
+name: HF Production Deploy
 
 on:
   push:
@@ -9,23 +9,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      # 🔥 IMPORTANT: inject secret
-      - name: Run Pipeline
+      - name: Run CI
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          PYTHONPATH=. python ci/orchestrator.py
+          HF_DATASET_ID: ${{ secrets.HF_DATASET_ID }}
+          HF_SPACE_ID: ${{ secrets.HF_SPACE_ID }}
+        run: PYTHONPATH=. python ci/orchestrator.py

@@ -1,53 +1,45 @@
 import os
 
-DEPLOY_FILES = {
-    "dashboard.py",
+WATCH = {
     "scraper.py",
+    "dashboard.py",
     "upload_hf.py",
-    "run_pipeline.py",
+    "deploy_space.py",
     "requirements.txt",
-    "jobs.parquet"
+    "data/jobs.parquet"
 }
 
 
-def get_changed_files():
+def get_changes():
     os.system("git fetch --prune --unshallow 2>/dev/null || true")
     os.system("git diff --name-only HEAD^ HEAD > changes.txt 2>/dev/null || git diff --name-only HEAD > changes.txt")
 
-    try:
-        with open("changes.txt", "r") as f:
-            return [x.strip() for x in f if x.strip()]
-    except:
-        return []
-
-
-def should_deploy(files):
-    return any(
-        any(trigger in f for trigger in DEPLOY_FILES)
-        for f in files
-    )
+    with open("changes.txt", "r") as f:
+        return [x.strip() for x in f if x.strip()]
 
 
 def run(cmd):
     print(f"\n▶ {cmd}")
-    return os.system(cmd)
+    code = os.system(cmd)
+    if code != 0:
+        raise RuntimeError(f"❌ Failed: {cmd}")
 
 
-# =========================
-# MAIN FLOW
-# =========================
-changed_files = get_changed_files()
+def should_run(files):
+    return any(any(w in f for w in WATCH) for f in files)
 
-print("CHANGED FILES:", changed_files)
 
-if should_deploy(changed_files):
-    print("\n🚀 DEPLOY STARTED")
+files = get_changes()
+
+print("CHANGED:", files)
+
+if should_run(files):
+    print("🚀 START PIPELINE")
 
     run("python scraper.py")
     run("python upload_hf.py")
     run("python deploy_space.py")
 
+    print("🎉 PIPELINE SUCCESS (REAL DEPLOY DONE)")
 else:
-    print("\n🟡 No deployment needed")
-
-print("\nDONE")
+    print("🟡 No deploy needed")

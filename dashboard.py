@@ -8,7 +8,7 @@ st.title("🚀 Job Intelligence Dashboard")
 
 @st.cache_data
 def load():
-    return pd.read_parquet("jobs.parquet")
+    return pd.read_parquet("Save Data/jobs.parquet")
 
 df = load()
 
