@@ -1,38 +1,49 @@
-from ci.autopilot_engine import AutoPilotCI
-from ci.env_autobuild import build_env
 import os
+from ci.propagation_engine import DependencyGraph
+from ci.planner import ExecutionPlanner
+from ci.env_autobuild import build_env
 
-ci = AutoPilotCI()
+def get_changed_files():
+    os.system("git diff --name-only HEAD~1 HEAD > changes.txt")
 
-changed = ci.detect_changes()
-intent = ci.infer_intent(changed)
+    with open("changes.txt") as f:
+        return f.read().splitlines()
 
-print("CHANGED:", changed)
-print("INTENT:", intent)
 
-# =====================
-# 1. ENV AUTO BUILD
-# =====================
-if intent["update_env"]:
-    build_env(changed)
+changed_files = get_changed_files()
+
+# 1. IMPACT DETECTION
+graph = DependencyGraph()
+impacts = graph.get_impacts(changed_files)
+
+# 2. PLAN GENERATION
+planner = ExecutionPlanner()
+plan = planner.build_plan(impacts)
+
+print("CHANGED:", changed_files)
+print("IMPACTS:", impacts)
+print("PLAN:", plan)
+
+# 3. ENV AUTO SYNC
+if plan["rebuild_env"]:
+    build_env(changed_files)
     os.system("pip install -r requirements.auto.txt")
 
-# =====================
-# 2. SCRAPER
-# =====================
-if intent["run_scraper"]:
+# 4. EXECUTION FLOW
+if plan["run_scraper"]:
     os.system("python scraper.py")
 
-# =====================
-# 3. PIPELINE / DAG
-# =====================
-if intent["run_pipeline"]:
+if plan["run_pipeline"]:
     os.system("python run_pipeline.py")
 
-# =====================
-# 4. DASHBOARD
-# =====================
-if intent["run_dashboard"]:
-    print("Dashboard updated → no pipeline rerun needed")
+if plan["run_upload"]:
+    os.system("python upload_hf.py")
 
-print("CI DONE")
+# 5. CRITICAL FIX: ALWAYS SYNC UI + DATA DEPLOY
+if plan["run_dashboard"] or plan["run_upload"]:
+    plan["run_deploy"] = True
+
+if plan["run_deploy"]:
+    os.system("python deploy_space.py")
+
+print("PIPELINE COMPLETE")
