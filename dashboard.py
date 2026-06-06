@@ -1,188 +1,227 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
-from datasets import load_dataset
-
-from sentence_transformers import SentenceTransformer
-import faiss
+import ast
+from collections import Counter
+from sklearn.linear_model import LinearRegression
+import datetime as dt
 
 # =========================
 # CONFIG
 # =========================
 st.set_page_config(
-    page_title="HR AI SaaS v7",
-    page_icon="🚀",
+    page_title="AI Job Intelligence Platform",
     layout="wide"
 )
 
-st.title("🚀 HR AI SaaS Platform v7 (Startup Ready)")
+# =========================
+# AUTO REFRESH (REAL-TIME SIMULATION)
+# =========================
+st.sidebar.title("⚙️ Controls")
+auto_refresh = st.sidebar.checkbox("Auto Refresh (30s)", value=True)
+
+if auto_refresh:
+    st.autorefresh = st.sidebar.empty()
+    st.experimental_rerun()
 
 # =========================
 # LOAD DATA
 # =========================
-@st.cache_data
+@st.cache_data(ttl=30)
 def load_data():
-    ds = load_dataset(
-        "Vincentran/careerviet-accounting-jobs",
-        split="train"
-    )
-    return pd.DataFrame(ds)
+    df = pd.read_parquet("jobs.parquet")
+    return df
 
-df = load_data().fillna("")
-df.columns = [c.lower() for c in df.columns]
+df = load_data()
 
 # =========================
-# EMBEDDING + VECTOR DB
+# DATA CLEANING + NORMALIZATION
 # =========================
-@st.cache_resource
-def build_vector_db(dataframe):
+def clean_skills(x):
+    try:
+        if isinstance(x, list):
+            return x
+        return ast.literal_eval(x)
+    except:
+        return []
 
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+df = df.drop_duplicates()
 
-    corpus = (
-        dataframe["job_title"].astype(str) + " " +
-        dataframe["company"].astype(str) + " " +
-        dataframe["location"].astype(str) + " " +
-        dataframe["market_skill"].astype(str) + " " +
-        dataframe["requirements"].astype(str)
-    ).tolist()
+df["skills"] = df["skills"].apply(clean_skills)
 
-    embeddings = model.encode(corpus, show_progress_bar=True)
-
-    index = faiss.IndexFlatL2(embeddings.shape[1])
-    index.add(np.array(embeddings))
-
-    return model, index
-
-model, index = build_vector_db(df)
+# normalize missing values
+df["location"] = df["location"].fillna("Unknown")
+df["company"] = df["company"].fillna("Unknown")
+df["platform"] = df["platform"].fillna("Unknown")
 
 # =========================
-# SEARCH ENGINE
+# FEATURE ENGINEERING
 # =========================
-def search(query, k=5):
-    q_emb = model.encode([query])
-    D, I = index.search(np.array(q_emb), k)
-    return df.iloc[I[0]]
+df["job_age"] = np.random.randint(1, 30, len(df))  # simulate (replace with real date later)
 
-# =========================
-# RESUME MATCHING ENGINE
-# =========================
-def match_resume(resume_text):
-
-    q_emb = model.encode([resume_text])
-    D, I = index.search(np.array(q_emb), 5)
-
-    return df.iloc[I[0]]
+all_skills = [s for sub in df["skills"] for s in sub]
+skill_counts = Counter(all_skills)
 
 # =========================
-# AGENTS
+# SIDEBAR FILTER (SLICERS)
 # =========================
-def recruiter_agent(results):
-    return f"""
-🧑‍💼 RECRUITER AI
-
-Top candidate job:
-- {results.iloc[0]['job_title']}
-
-Required skills:
-- {results.iloc[0]['market_skill']}
-
-Hiring advice:
-- Target mid-level accounting talent
-- Focus Excel + ERP + Audit skills
-"""
-
-def analyst_agent(results):
-    return f"""
-📊 ANALYST AI
-
-Market insight:
-- Top role: {results.iloc[0]['job_title']}
-- Company: {results.iloc[0]['company']}
-
-Insight:
-- Demand concentrated in accounting & finance roles
-- Skill cluster: Excel, Audit, Tax, ERP
-"""
-
-def matcher_agent(results):
-    return f"""
-🎯 MATCHING AI
-
-Best match:
-- {results.iloc[0]['job_title']}
-- Location: {results.iloc[0]['location']}
-
-Match confidence:
-- High semantic similarity via embeddings
-"""
-
-# =========================
-# UI: SIDEBAR
-# =========================
-st.sidebar.title("🤖 AI SaaS Engine")
-
-mode = st.sidebar.selectbox(
-    "Mode",
-    ["Job Search", "Resume Matcher", "Recruiter Agent", "Analyst Agent"]
+platform_filter = st.sidebar.multiselect(
+    "Platform",
+    df["platform"].unique(),
+    default=list(df["platform"].unique())
 )
 
-query = st.sidebar.text_input("Enter query")
+company_filter = st.sidebar.multiselect(
+    "Company",
+    df["company"].unique()
+)
 
-resume = st.sidebar.text_area("Resume (for matching only)")
+df_filtered = df[df["platform"].isin(platform_filter)]
 
-# =========================
-# EXECUTION
-# =========================
-if mode == "Job Search" and query:
-    results = search(query)
+if company_filter:
+    df_filtered = df_filtered[df_filtered["company"].isin(company_filter)]
 
-elif mode == "Resume Matcher" and resume:
-    results = match_resume(resume)
+# search
+search = st.sidebar.text_input("Search Job")
 
-elif mode in ["Recruiter Agent", "Analyst Agent"] and query:
-    results = search(query)
-
-else:
-    results = None
+if search:
+    df_filtered = df_filtered[df_filtered["title"].str.contains(search, case=False, na=False)]
 
 # =========================
-# MAIN DASHBOARD
+# HEADER
 # =========================
-c1, c2, c3 = st.columns(3)
+st.title("🚀 AI Job Market Intelligence Dashboard")
+st.caption("Real-time analytics + AI insights + forecasting engine")
 
-c1.metric("Jobs", len(df))
-c2.metric("Companies", df["company"].nunique())
-c3.metric("Locations", df["location"].nunique())
-
-st.divider()
+st.markdown("---")
 
 # =========================
-# RESULTS VIEW
+# KPI CARDS
 # =========================
-if results is not None:
+col1, col2, col3, col4 = st.columns(4)
 
-    st.subheader("🔎 Top Matches")
+col1.metric("Total Jobs", len(df_filtered))
+col2.metric("Companies", df_filtered["company"].nunique())
+col3.metric("Skills Found", len(skill_counts))
+col4.metric("Platforms", df_filtered["platform"].nunique())
 
-    st.dataframe(
-        results[[
-            "job_title",
-            "company",
-            "location",
-            "salary",
-            "market_skill"
-        ]]
-    )
+st.markdown("---")
 
-    st.divider()
+# =========================
+# AI MARKET INSIGHT ENGINE (RULE-BASED + LLM READY)
+# =========================
+st.subheader("🧠 AI Market Insight Engine")
 
-    colA, colB = st.columns(2)
+top_skill = skill_counts.most_common(1)[0][0] if skill_counts else "N/A"
+top_company = df_filtered["company"].value_counts().index[0] if len(df_filtered) > 0 else "N/A"
 
-    with colA:
-        st.info(recruiter_agent(results))
+insight = f"""
+📊 Market Insight:
+- Most demanded skill: **{top_skill}**
+- Top hiring company: **{top_company}**
+- Market is dominated by {df_filtered['platform'].mode()[0] if len(df_filtered)>0 else 'N/A'}
 
-    with colB:
-        st.info(analyst_agent(results))
+💡 Recommendation:
+Focus on {top_skill}, combine with SQL + data visualization skills.
+"""
 
-else:
-    st.warning("Enter query or resume to activate AI SaaS engine")
+st.info(insight)
+
+# =========================
+# CHARTS (ADVANCED + DYNAMIC)
+# =========================
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("📊 Platform Distribution")
+    fig = px.pie(df_filtered, names="platform", title="Jobs by Platform")
+    st.plotly_chart(fig, use_container_width=True)
+
+with col2:
+    st.subheader("🔥 Top Skills (AI Extracted)")
+    top_skills = pd.DataFrame(skill_counts.most_common(10), columns=["Skill", "Count"])
+    fig = px.bar(top_skills, x="Skill", y="Count")
+    st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# COMPANY ANALYTICS
+# =========================
+st.subheader("🏢 Hiring Companies Intelligence")
+
+company_df = df_filtered["company"].value_counts().head(10).reset_index()
+company_df.columns = ["Company", "Jobs"]
+
+fig = px.bar(company_df, x="Company", y="Jobs")
+st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# FORECASTING ENGINE (SIMPLE ML MODEL)
+# =========================
+st.subheader("📈 Job Market Forecasting (ML)")
+
+trend_data = df_filtered.groupby("platform").size().reset_index(name="count")
+trend_data["time"] = np.arange(len(trend_data))
+
+if len(trend_data) > 1:
+    model = LinearRegression()
+    model.fit(trend_data[["time"]], trend_data["count"])
+    future = model.predict([[len(trend_data) + 1]])
+
+    st.success(f"📊 Predicted job volume next period: {int(future[0])}")
+
+# =========================
+# JOB TABLE (WITH URL COLUMN)
+# =========================
+st.subheader("🔍 Job Explorer (Advanced Table)")
+
+table_df = df_filtered[[
+    "title",
+    "company",
+    "platform",
+    "location",
+    "skills",
+    "url"   # URL JOB COLUMN (IMPORTANT)
+]]
+
+st.dataframe(table_df, use_container_width=True)
+
+# =========================
+# VISUAL HEATMAP (SKILL INTENSITY)
+# =========================
+st.subheader("🧬 Skill Intelligence Heatmap")
+
+if skill_counts:
+    heat_df = pd.DataFrame(skill_counts.most_common(15), columns=["Skill", "Count"])
+    heat_df["Intensity"] = heat_df["Count"] / heat_df["Count"].max()
+
+    fig = go.Figure(data=go.Heatmap(
+        z=[heat_df["Intensity"]],
+        x=heat_df["Skill"],
+        colorscale="Viridis"
+    ))
+
+    st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# AI AGENT CHAT (SIMPLE LLM PLACEHOLDER)
+# =========================
+st.subheader("🤖 AI Agent (Ask Market Questions)")
+
+user_q = st.text_input("Ask AI (e.g. 'What skill should I learn?')")
+
+if user_q:
+    # simple rule-based AI (replace with OpenAI API later)
+    if "skill" in user_q.lower():
+        st.write(f"👉 You should focus on: {top_skill} + SQL + Power BI")
+    elif "market" in user_q.lower():
+        st.write(f"👉 Market is trending towards {top_skill} jobs")
+    else:
+        st.write("👉 AI Agent: I recommend focusing on data + analytics skills")
+
+# =========================
+# FOOTER
+# =========================
+st.markdown("---")
+st.caption("AI Dashboard v1 | Upgrade ready for LLM API + real-time ci")

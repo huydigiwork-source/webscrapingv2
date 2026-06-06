@@ -13,3 +13,7 @@ faiss-cpu
 fastapi
 uvicorn
 numpy
+plotly
+scikit-learn
+pyarrow
+fastparquet
