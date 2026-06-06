@@ -20,5 +20,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run Autonomous CI
-        run: python ci/orchestrator.py
+      - name: Run CI Pipeline
+        run: |
+          PYTHONPATH=. python -m ci.orchestrator
