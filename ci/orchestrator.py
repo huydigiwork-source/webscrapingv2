@@ -3,7 +3,6 @@
 import os
 from ci.propagation_engine import DependencyGraph
 from ci.planner import ExecutionPlanner
-from ci.env_autobuild import build_env
 
 
 def get_changed_files():
@@ -16,21 +15,16 @@ def get_changed_files():
         return []
 
 
-def run_command(cmd):
+def run(cmd):
     print(f"\n▶ {cmd}")
-    result = os.system(cmd)
-    if result != 0:
-        print(f"❌ Command failed: {cmd}")
-    return result
+    return os.system(cmd)
 
 
 # =========================
-# 1. DETECT CHANGES
+# 1. GET CHANGES
 # =========================
 changed_files = get_changed_files()
-
-print("\n===== CHANGED FILES =====")
-print(changed_files)
+print("CHANGED FILES:", changed_files)
 
 # =========================
 # 2. PROPAGATION ENGINE
@@ -38,46 +32,35 @@ print(changed_files)
 graph = DependencyGraph()
 impacts = graph.get_impacts(changed_files)
 
-print("\n===== IMPACTS =====")
-print(impacts)
+print("IMPACTS:", impacts)
 
 # =========================
-# 3. EXECUTION PLAN
+# 3. PLANNER
 # =========================
 planner = ExecutionPlanner()
 plan = planner.build_plan(impacts)
 
-print("\n===== EXECUTION PLAN =====")
-print(plan)
+print("PLAN:", plan)
 
 # =========================
-# 4. ENVIRONMENT LAYER
-# =========================
-if plan["rebuild_env"]:
-    print("\n🧪 Rebuilding environment...")
-    build_env(changed_files)
-    run_command("pip install -r requirements.auto.txt")
-
-# =========================
-# 5. DATA PIPELINE
+# 4. EXECUTION LAYER
 # =========================
 if plan["run_scraper"]:
-    run_command("python scraper.py")
+    run("python scraper.py")
 
 if plan["run_pipeline"]:
-    run_command("python run_pipeline.py")
+    run("python run_pipeline.py")
 
 if plan["run_upload"]:
-    run_command("python upload_hf.py")
+    run("python upload_hf.py")
 
-# =========================
-# 6. UI + DEPLOY LAYER
-# =========================
 if plan["run_dashboard"]:
-    print("\n🎨 Dashboard updated")
+    print("Dashboard updated")
 
-# ALWAYS SAFE RULE (CRITICAL FIX)
+# =========================
+# 5. DEPLOY RULE (UNIFIED)
+# =========================
 if plan["run_deploy"] or plan["run_upload"] or plan["run_dashboard"]:
-    run_command("python deploy_space.py")
+    run("python deploy_space.py")
 
-print("\n===== PIPELINE COMPLETE =====")
+print("\nPIPELINE COMPLETE")

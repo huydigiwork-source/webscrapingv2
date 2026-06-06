@@ -4,9 +4,6 @@ on:
   push:
     branches: [ main ]
 
-  schedule:
-    - cron: "0 0 * * *"
-
 jobs:
   autopilot:
     runs-on: ubuntu-latest
