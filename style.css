@@ -1,89 +1,54 @@
-/* ==================================================
-   GLOBAL
-================================================== */
+:root{
+--primary:#4F46E5;
+--secondary:#06B6D4;
+--card-bg:rgba(255,255,255,0.08);
+--border:rgba(255,255,255,0.15);
+}
+
+.main{
+background:
+radial-gradient(circle at top left,#1E1B4B,#0F172A);
+}
+
+section[data-testid="stSidebar"]{
+background:#111827;
+}
 
 .block-container{
-    padding-top: 1rem;
-    max-width: 1600px;
+padding-top:1rem;
+max-width:1500px;
 }
 
-/* ==================================================
-   HERO
-================================================== */
-
-.hero{
-    background: linear-gradient(
-        135deg,
-        #2563eb,
-        #1e40af
-    );
-
-    padding: 28px;
-
-    border-radius: 18px;
-
-    margin-bottom: 20px;
-
-    color: white;
+.metric-card{
+background:var(--card-bg);
+backdrop-filter:blur(20px);
+border:1px solid var(--border);
+border-radius:18px;
+padding:20px;
+transition:.3s;
 }
 
-.hero h1{
-    margin: 0;
-    font-size: 36px;
-    font-weight: 700;
+.metric-card:hover{
+transform:translateY(-6px);
+box-shadow:0 10px 30px rgba(79,70,229,.4);
 }
 
-.hero p{
-    margin-top: 8px;
-    opacity: 0.9;
+.dashboard-title{
+font-size:42px;
+font-weight:800;
+background:linear-gradient(90deg,#60A5FA,#A78BFA);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
 }
 
-/* ==================================================
-   KPI
-================================================== */
-
-div[data-testid="stMetric"]{
-
-    background: white;
-
-    border-radius: 16px;
-
-    padding: 14px;
-
-    border: 1px solid #e5e7eb;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,0.08);
+.chart-card{
+background:rgba(255,255,255,.05);
+border-radius:20px;
+padding:10px;
+border:1px solid rgba(255,255,255,.1);
 }
 
-/* ==================================================
-   SIDEBAR
-================================================== */
-
-[data-testid="stSidebar"]{
-
-    border-right:
-        1px solid #e5e7eb;
-}
-
-/* ==================================================
-   TABLE
-================================================== */
-
-[data-testid="stDataFrame"]{
-
-    border-radius: 16px;
-
-    overflow: hidden;
-}
-
-/* ==================================================
-   PLOTLY
-================================================== */
-
-.js-plotly-plot {
-
-    border-radius: 16px;
-
-    overflow: hidden;
+.stDataFrame{
+border-radius:16px;
+overflow:hidden;
 }

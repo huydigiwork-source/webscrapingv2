@@ -1,343 +1,158 @@
-import os
-import streamlit as st
-import pandas as pd
+# KPI SECTION
 
-from pathlib import Path
+c1,c2,c3,c4 = st.columns(4)
 
-from huggingface_hub import (
-    hf_hub_download,
-    HfApi
+metrics = [
+("Jobs",f"{len(filtered):,}"),
+("Companies",filtered["company"].nunique()),
+("Locations",filtered["location"].nunique()),
+("Coverage",f"{coverage}%")
+]
+
+for col,(title,value) in zip([c1,c2,c3,c4],metrics):
+with col:
+st.markdown(
+f""" <div class="metric-card"> <h4>{title}</h4> <h2>{value}</h2> </div>
+""",
+unsafe_allow_html=True
 )
 
-import plotly.express as px
+st.markdown("<br>",unsafe_allow_html=True)
 
-# ==================================================
-# PAGE CONFIG
-# ==================================================
+# TREEMAP
 
-st.set_page_config(
-    page_title="Workforce Intelligence",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+st.subheader("Market Structure")
+
+treemap_data = (
+filtered["company"]
+.value_counts()
+.head(30)
+.reset_index()
 )
 
-# ==================================================
-# HF CONFIG
-# ==================================================
+treemap_data.columns=[
+"Company",
+"Jobs"
+]
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-HF_DATASET_ID = "Vincentran/careerviet-job-market"
-FILE_NAME = "jobs.parquet"
-
-api = HfApi(
-    token=HF_TOKEN
+fig = px.treemap(
+treemap_data,
+path=["Company"],
+values="Jobs",
+color="Jobs"
 )
 
-# ==================================================
-# LOAD CSS
-# ==================================================
-
-css_file = Path("style.css")
-
-if css_file.exists():
-    with open(css_file, encoding="utf-8") as f:
-        st.markdown(
-            f"<style>{f.read()}</style>",
-            unsafe_allow_html=True
-        )
-
-# ==================================================
-# DATA LOADER
-# ==================================================
-
-@st.cache_data(
-    ttl=3600,
-    show_spinner=False
-)
-def load_data():
-
-    file_path = hf_hub_download(
-        repo_id=HF_DATASET_ID,
-        filename=FILE_NAME,
-        repo_type="dataset",
-        token=HF_TOKEN
-    )
-
-    return pd.read_parquet(
-        file_path
-    )
-
-# ==================================================
-# LOAD DATA
-# ==================================================
-
-try:
-
-    df = load_data()
-
-except Exception as e:
-
-    st.error(
-        f"Failed to load dataset: {e}"
-    )
-
-    st.stop()
-
-if df.empty:
-
-    st.warning(
-        "Dataset is empty."
-    )
-
-    st.stop()
-
-# ==================================================
-# SAFE COLUMNS
-# ==================================================
-
-for col in [
-    "title",
-    "company",
-    "location"
-]:
-    if col not in df.columns:
-        df[col] = ""
-
-# ==================================================
-# HEADER
-# ==================================================
-
-st.title(
-    "📊 Workforce Intelligence Dashboard"
+fig.update_layout(
+height=600
 )
 
-st.caption(
-    "Powered by Hugging Face Dataset"
+st.plotly_chart(
+fig,
+use_container_width=True
 )
 
-# ==================================================
-# SIDEBAR
-# ==================================================
+# COMPANY + LOCATION
 
-with st.sidebar:
-
-    st.header(
-        "Filters"
-    )
-
-    search = st.text_input(
-        "Search Jobs"
-    )
-
-    locations = (
-        ["All"]
-        +
-        sorted(
-            df["location"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-    )
-
-    companies = (
-        ["All"]
-        +
-        sorted(
-            df["company"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-    )
-
-    location = st.selectbox(
-        "Location",
-        locations
-    )
-
-    company = st.selectbox(
-        "Company",
-        companies
-    )
-
-# ==================================================
-# FILTER
-# ==================================================
-
-filtered = df.copy()
-
-if search:
-
-    filtered = filtered[
-        filtered["title"]
-        .astype(str)
-        .str.contains(
-            search,
-            case=False,
-            na=False
-        )
-    ]
-
-if location != "All":
-
-    filtered = filtered[
-        filtered["location"]
-        == location
-    ]
-
-if company != "All":
-
-    filtered = filtered[
-        filtered["company"]
-        == company
-    ]
-
-# ==================================================
-# KPI
-# ==================================================
-
-coverage = round(
-    len(filtered)
-    / len(df)
-    * 100,
-    1
-)
-
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric(
-    "Jobs",
-    f"{len(filtered):,}"
-)
-
-c2.metric(
-    "Companies",
-    filtered["company"].nunique()
-)
-
-c3.metric(
-    "Locations",
-    filtered["location"].nunique()
-)
-
-c4.metric(
-    "Coverage",
-    f"{coverage}%"
-)
-
-st.divider()
-
-# ==================================================
-# TOP COMPANIES
-# ==================================================
-
-left, right = st.columns(2)
+left,right = st.columns(2)
 
 with left:
 
-    st.subheader(
-        "Top Companies"
-    )
+```
+company_data=(
+    filtered["company"]
+    .value_counts()
+    .head(15)
+    .reset_index()
+)
 
-    company_data = (
-        filtered["company"]
-        .value_counts()
-        .head(10)
-        .reset_index()
-    )
+company_data.columns=[
+    "Company",
+    "Jobs"
+]
 
-    company_data.columns = [
-        "Company",
-        "Jobs"
-    ]
+fig=px.bar(
+    company_data,
+    x="Jobs",
+    y="Company",
+    orientation="h",
+    text="Jobs"
+)
 
-    fig = px.bar(
-        company_data,
-        x="Jobs",
-        y="Company",
-        orientation="h"
-    )
+fig.update_layout(
+    height=600
+)
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
+```
 
 with right:
 
-    st.subheader(
-        "Top Locations"
-    )
-
-    location_data = (
-        filtered["location"]
-        .value_counts()
-        .head(10)
-        .reset_index()
-    )
-
-    location_data.columns = [
-        "Location",
-        "Jobs"
-    ]
-
-    fig = px.bar(
-        location_data,
-        x="Jobs",
-        y="Location",
-        orientation="h"
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-# ==================================================
-# TABLE
-# ==================================================
-
-st.subheader(
-    "Data Explorer"
+```
+location_data=(
+    filtered["location"]
+    .value_counts()
+    .head(15)
+    .reset_index()
 )
 
-st.dataframe(
-    filtered.head(1000),
+location_data.columns=[
+    "Location",
+    "Jobs"
+]
+
+fig=px.pie(
+    location_data,
+    values="Jobs",
+    names="Location",
+    hole=.55
+)
+
+fig.update_traces(
+    textinfo="percent+label"
+)
+
+fig.update_layout(
+    height=600
+)
+
+st.plotly_chart(
+    fig,
     use_container_width=True
 )
+```
 
-# ==================================================
-# STATUS
-# ==================================================
+# SUNBURST
 
-with st.expander(
-    "System Status"
-):
+if "job_title" in filtered.columns:
 
-    st.write(
-        "HF Token Loaded:",
-        bool(HF_TOKEN)
-    )
-
-    st.write(
-        "Dataset:",
-        HF_DATASET_ID
-    )
-
-    st.write(
-        "Rows:",
-        len(df)
-    )
-
-# ==================================================
-# FOOTER
-# ==================================================
-
-st.caption(
-    "Hugging Face • Streamlit • Plotly"
+```
+tmp=(
+    filtered["job_title"]
+    .value_counts()
+    .head(50)
+    .reset_index()
 )
+
+tmp.columns=[
+    "Job",
+    "Count"
+]
+
+fig=px.sunburst(
+    tmp,
+    path=["Job"],
+    values="Count"
+)
+
+fig.update_layout(
+    height=700
+)
+
+st.plotly_chart(
+    fig,
+    use_container_width=True
+)
+```
