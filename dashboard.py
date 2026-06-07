@@ -1,144 +1,160 @@
 import streamlit as st
 import pandas as pd
-from huggingface_hub import hf_hub_download
+import plotly.express as px
 import os
 
 # =========================
 # CONFIG
 # =========================
-DATASET_ID = "Vincentran/careerviet-accounting-jobs"
+st.set_page_config(
+    page_title="AI Job Intelligence Dashboard",
+    layout="wide",
+    page_icon="📊"
+)
+
+DATA_PATH = "jobs.parquet"
 
 # =========================
-# LOAD DATA (LATEST HF)
+# LOAD DATA
 # =========================
-@st.cache_data(ttl=0)
+@st.cache_data
 def load_data():
-    file_path = hf_hub_download(
-        repo_id=DATASET_ID,
-        filename="jobs.parquet",
-        repo_type="dataset",
-        revision="main",
-        force_download=True
-    )
-    return pd.read_parquet(file_path)
+    if os.path.exists(DATA_PATH):
+        df = pd.read_parquet(DATA_PATH)
+    else:
+        st.error("jobs.parquet not found")
+        return pd.DataFrame()
+    return df
+
 
 df = load_data()
 
 # =========================
-# AI LAYER (SIMULATED AGENTS)
+# HEADER (AI UX/UI)
 # =========================
-
-def ai_job_search(query):
-    if not query:
-        return df
-    return df[df["job_title"].str.contains(query, case=False, na=False)]
-
-def ai_insights(data):
-    insights = []
-    insights.append(f"Total jobs: {len(data)}")
-    insights.append(f"Top company: {data['company'].value_counts().idxmax()}")
-    insights.append(f"Top location: {data['location'].value_counts().idxmax()}")
-    return insights
-
-def ai_recommend_jobs():
-    return df.sample(min(5, len(df)))
-
-def ai_chatbot(user_input):
-    if "salary" in user_input.lower():
-        return "Most jobs in dataset are accounting roles with mid-level salary range (estimated)."
-    if "company" in user_input.lower():
-        return "Top hiring companies are distributed across SME and enterprise sectors."
-    return "I can help you analyze jobs, trends, companies, and recommendations."
-
-def ai_analytics(data):
-    return {
-        "total_jobs": len(data),
-        "companies": data["company"].nunique(),
-        "locations": data["location"].nunique()
-    }
+st.title("🤖 AI Job Intelligence System")
+st.caption("AI Agent • Job Search • Insights • Analytics • Chatbot")
 
 # =========================
-# UI CONFIG
+# SIDEBAR - AI AGENT FILTER
 # =========================
-st.set_page_config(page_title="AI Job Intelligence Platform", layout="wide")
+st.sidebar.header("🧠 AI Agent Controls")
 
-st.title("🚀 AI Job Intelligence Platform")
+keyword = st.sidebar.text_input("Search Job (AI Query)", "")
+city_filter = st.sidebar.selectbox(
+    "Location Filter",
+    ["All"] + list(df["location"].dropna().unique()) if not df.empty else ["All"]
+)
 
-# =========================
-# SIDEBAR - AI JOB SEARCH
-# =========================
-st.sidebar.header("🔎 AI Job Search")
+if keyword:
+    df = df[df["title"].str.contains(keyword, case=False, na=False)]
 
-query = st.sidebar.text_input("Search jobs (AI agent)")
-
-filtered_df = ai_job_search(query)
-
-st.sidebar.subheader("🤖 AI Recommendations")
-st.sidebar.dataframe(ai_recommend_jobs())
+if city_filter != "All":
+    df = df[df["location"] == city_filter]
 
 # =========================
-# MAIN DASHBOARD
+# KPI METRICS (AI ANALYTICS)
 # =========================
-
 col1, col2, col3 = st.columns(3)
 
-analytics = ai_analytics(filtered_df)
-
 with col1:
-    st.metric("Total Jobs", analytics["total_jobs"])
+    st.metric("Total Jobs", len(df))
 
 with col2:
-    st.metric("Companies", analytics["companies"])
+    if "company" in df.columns:
+        st.metric("Companies", df["company"].nunique())
+    else:
+        st.metric("Companies", "N/A")
 
 with col3:
-    st.metric("Locations", analytics["locations"])
+    if "location" in df.columns:
+        st.metric("Locations", df["location"].nunique())
+    else:
+        st.metric("Locations", "N/A")
 
 st.divider()
 
 # =========================
 # AI INSIGHTS SECTION
 # =========================
-st.subheader("🧠 AI Insights")
+st.subheader("🧠 AI Insights Engine")
 
-for i in ai_insights(filtered_df):
-    st.write("•", i)
+if not df.empty:
 
-st.divider()
+    top_company = df["company"].value_counts().head(5) if "company" in df else None
 
-# =========================
-# DATA TABLE (UX/UI LAYER)
-# =========================
-st.subheader("📊 Job Data Explorer")
-st.dataframe(filtered_df, use_container_width=True)
+    colA, colB = st.columns(2)
 
-# =========================
-# AI CHATBOT
-# =========================
-st.subheader("💬 AI Chatbot")
+    with colA:
+        st.write("🔥 Top Hiring Companies")
+        if top_company is not None:
+            st.dataframe(top_company)
 
-user_input = st.text_input("Ask AI about jobs, salary, companies...")
-
-if user_input:
-    response = ai_chatbot(user_input)
-    st.success(response)
-
-st.divider()
+    with colB:
+        st.write("📍 Top Locations")
+        if "location" in df:
+            st.dataframe(df["location"].value_counts().head(5))
 
 # =========================
 # AI CHARTS
 # =========================
-st.subheader("📈 AI Charts")
+st.subheader("📊 AI Analytics Dashboard")
 
-chart_data = filtered_df["company"].value_counts().head(10)
+col1, col2 = st.columns(2)
 
-chart_df = pd.DataFrame({
-    "company": chart_data.index,
-    "count": chart_data.values
-})
+with col1:
+    if "location" in df:
+        fig1 = px.bar(
+            df["location"].value_counts().head(10),
+            title="Jobs by Location"
+        )
+        st.plotly_chart(fig1, use_container_width=True)
 
-st.bar_chart(chart_df.set_index("company"))
+with col2:
+    if "company" in df:
+        fig2 = px.pie(
+            names=df["company"].value_counts().head(8).index,
+            values=df["company"].value_counts().head(8).values,
+            title="Top Companies Share"
+        )
+        st.plotly_chart(fig2, use_container_width=True)
 
 # =========================
-# FOOTER
+# AI JOB SEARCH RESULTS
 # =========================
-st.caption("AI-powered Job Intelligence Dashboard (HF + Streamlit + AI Layer)")
+st.subheader("🔎 AI Job Search Results")
+
+st.dataframe(df, use_container_width=True)
+
+# =========================
+# AI CHATBOT (SIMPLE VERSION)
+# =========================
+st.divider()
+st.subheader("💬 AI Chatbot Assistant")
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+user_input = st.text_input("Ask AI about jobs:")
+
+if user_input:
+
+    response = "I analyzed your dataset and found relevant job insights."
+
+    if "data" in user_input.lower():
+        response = f"Dataset contains {len(df)} jobs."
+
+    elif "company" in user_input.lower():
+        response = "Top companies: " + ", ".join(df["company"].value_counts().head(3).index) if "company" in df else "No data"
+
+    st.session_state.chat_history.append((user_input, response))
+
+for q, a in reversed(st.session_state.chat_history):
+    st.markdown(f"**🧑 You:** {q}")
+    st.markdown(f"**🤖 AI:** {a}")
+    st.markdown("---")
+
+# =========================
+# FOOTER (AI UX)
+# =========================
+st.caption("🚀 Powered by AI Agent • HuggingFace Dataset • Streamlit")
