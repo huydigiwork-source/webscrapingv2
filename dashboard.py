@@ -1,422 +1,304 @@
-import streamlit as st
 import pandas as pd
-import plotly.express as px
+import numpy as np
+
 from huggingface_hub import hf_hub_download
 
-from streamlit_extras.colored_header import colored_header
-from streamlit_extras.metric_cards import style_metric_cards
+from dash import Dash
+from dash import html
+from dash import dcc
 
-# ==================================================
+import dash_ag_grid as dag
+import dash_mantine_components as dmc
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+
+import plotly.express as px
+
+# =====================================================
+
 # CONFIG
-# ==================================================
+
+# =====================================================
+
 HF_DATASET_ID = "Vincentran/careerviet-job-market"
 FILE_NAME = "jobs.parquet"
 
-# ==================================================
-# PAGE
-# ==================================================
-st.set_page_config(
-    page_title="Workforce Intelligence Dashboard",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+# =====================================================
+
+# LOAD DATA
+
+# =====================================================
+
+file_path = hf_hub_download(
+repo_id=HF_DATASET_ID,
+filename=FILE_NAME,
+repo_type="dataset"
 )
 
-# ==================================================
-# CUSTOM CSS
-# ==================================================
-st.markdown("""
-<style>
+df = pd.read_parquet(file_path)
 
-.block-container{
-    padding-top:1.5rem;
-    padding-bottom:1rem;
-}
-
-div[data-testid="stMetric"]{
-    background:#111827;
-    border-radius:12px;
-    padding:12px;
-    border:1px solid #1f2937;
-}
-
-[data-testid="stSidebar"]{
-    background:#0f172a;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# ==================================================
-# DATA LOADER
-# ==================================================
-@st.cache_data(
-    ttl=3600,
-    show_spinner=False
-)
-def load_data():
-
-    file_path = hf_hub_download(
-        repo_id=HF_DATASET_ID,
-        filename=FILE_NAME,
-        repo_type="dataset"
-    )
-
-    return pd.read_parquet(file_path)
-
-# ==================================================
-# SESSION CACHE
-# ==================================================
-if "df" not in st.session_state:
-    st.session_state.df = load_data()
-
-df = st.session_state.df
-
-if df.empty:
-    st.error("Dataset is empty")
-    st.stop()
-
-# ==================================================
-# ENSURE COLUMNS EXIST
-# ==================================================
 for col in ["title", "company", "location"]:
-    if col not in df.columns:
-        df[col] = ""
+if col not in df.columns:
+df[col] = ""
 
-# ==================================================
-# HEADER
-# ==================================================
-colored_header(
-    label="Workforce Intelligence Dashboard",
-    description="Real-time labor market analytics • interactive exploration",
-    color_name="blue-70"
+# =====================================================
+
+# ML CLUSTERING
+
+# =====================================================
+
+try:
+
+```
+titles = (
+    df["title"]
+    .fillna("")
+    .astype(str)
 )
 
-# ==================================================
-# SIDEBAR
-# ==================================================
-with st.sidebar:
-
-    st.header("Control Panel")
-
-    search = st.text_input(
-        "Search Jobs",
-        placeholder="Accountant, Data Analyst..."
-    )
-
-    locations = (
-        ["All"]
-        + sorted(
-            df["location"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-    )
-
-    companies = (
-        ["All"]
-        + sorted(
-            df["company"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
-    )
-
-    location = st.selectbox(
-        "Location",
-        locations
-    )
-
-    company = st.selectbox(
-        "Company",
-        companies
-    )
-
-    top_n = st.slider(
-        "Top N Insights",
-        min_value=5,
-        max_value=20,
-        value=10
-    )
-
-# ==================================================
-# FILTER ENGINE
-# ==================================================
-filtered = df.copy()
-
-if search.strip():
-
-    filtered = filtered[
-        filtered["title"]
-        .fillna("")
-        .astype(str)
-        .str.contains(
-            search,
-            case=False,
-            na=False
-        )
-    ]
-
-if location != "All":
-    filtered = filtered[
-        filtered["location"] == location
-    ]
-
-if company != "All":
-    filtered = filtered[
-        filtered["company"] == company
-    ]
-
-# ==================================================
-# KPI
-# ==================================================
-coverage = round(
-    len(filtered) / len(df) * 100,
-    1
+tfidf = TfidfVectorizer(
+    max_features=100
 )
 
-c1, c2, c3, c4 = st.columns(4)
+X = tfidf.fit_transform(titles)
 
-c1.metric(
-    "Jobs",
-    f"{len(filtered):,}"
+n_clusters = min(
+    5,
+    max(2, len(df) // 100)
 )
 
-c2.metric(
-    "Companies",
-    filtered["company"].nunique()
+km = KMeans(
+    n_clusters=n_clusters,
+    random_state=42,
+    n_init=10
 )
 
-c3.metric(
-    "Locations",
-    filtered["location"].nunique()
-)
+df["cluster"] = km.fit_predict(X)
+```
 
-c4.metric(
-    "Coverage",
-    f"{coverage}%"
-)
+except Exception:
 
-style_metric_cards()
+```
+df["cluster"] = 0
+```
 
-st.divider()
+# =====================================================
 
-# ==================================================
+# KPIs
+
+# =====================================================
+
+total_jobs = len(df)
+total_companies = df["company"].nunique()
+total_locations = df["location"].nunique()
+
+# =====================================================
+
 # CHARTS
-# ==================================================
-left, right = st.columns(2)
 
-with left:
+# =====================================================
 
-    st.subheader("🏢 Top Companies")
-
-    company_count = (
-        filtered["company"]
-        .value_counts()
-        .head(top_n)
-        .reset_index()
-    )
-
-    company_count.columns = [
-        "Company",
-        "Jobs"
-    ]
-
-    fig = px.bar(
-        company_count,
-        x="Jobs",
-        y="Company",
-        orientation="h",
-        color="Jobs"
-    )
-
-    fig.update_layout(
-        height=450,
-        margin=dict(
-            l=20,
-            r=20,
-            t=20,
-            b=20
-        ),
-        showlegend=False
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-with right:
-
-    st.subheader("📍 Top Locations")
-
-    location_count = (
-        filtered["location"]
-        .value_counts()
-        .head(top_n)
-        .reset_index()
-    )
-
-    location_count.columns = [
-        "Location",
-        "Jobs"
-    ]
-
-    fig = px.bar(
-        location_count,
-        x="Jobs",
-        y="Location",
-        orientation="h",
-        color="Jobs"
-    )
-
-    fig.update_layout(
-        height=450,
-        margin=dict(
-            l=20,
-            r=20,
-            t=20,
-            b=20
-        ),
-        showlegend=False
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-# ==================================================
-# DISTRIBUTION
-# ==================================================
-st.subheader("Market Distribution")
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    pie_loc = (
-        filtered["location"]
-        .value_counts()
-        .head(8)
-    )
-
-    fig = px.pie(
-        names=pie_loc.index,
-        values=pie_loc.values,
-        hole=0.55
-    )
-
-    fig.update_layout(height=450)
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-with col2:
-
-    pie_comp = (
-        filtered["company"]
-        .value_counts()
-        .head(8)
-    )
-
-    fig = px.pie(
-        names=pie_comp.index,
-        values=pie_comp.values,
-        hole=0.55
-    )
-
-    fig.update_layout(height=450)
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-# ==================================================
-# DATA EXPLORER
-# ==================================================
-st.subheader("Data Explorer")
-
-st.dataframe(
-    filtered.head(1000),
-    use_container_width=True,
-    height=500
+company_chart = px.bar(
+df["company"]
+.value_counts()
+.head(10)
+.reset_index(),
+x="count",
+y="company",
+orientation="h",
+template="plotly_dark",
+title="Top Hiring Companies"
 )
 
-st.caption(
-    f"Showing {min(len(filtered),1000):,} / {len(filtered):,} rows"
+location_chart = px.bar(
+df["location"]
+.value_counts()
+.head(10)
+.reset_index(),
+x="count",
+y="location",
+orientation="h",
+template="plotly_dark",
+title="Top Hiring Locations"
 )
 
-# ==================================================
-# ASSISTANT
-# ==================================================
-st.subheader("Assistant")
-
-question = st.text_input(
-    "Ask about the job market"
+cluster_chart = px.pie(
+df["cluster"]
+.value_counts()
+.reset_index(),
+names="cluster",
+values="count",
+template="plotly_dark",
+title="Job Market Segments"
 )
 
-if question:
+# =====================================================
 
-    q = question.lower()
+# GRID
 
-    if "company" in q:
+# =====================================================
 
-        answer = (
-            filtered["company"]
-            .value_counts()
-            .head(5)
-            .to_string()
-        )
+column_defs = []
 
-    elif "location" in q:
+for c in df.columns:
+column_defs.append(
+{
+"field": c,
+"filter": True,
+"sortable": True
+}
+)
 
-        answer = (
-            filtered["location"]
-            .value_counts()
-            .head(5)
-            .to_string()
-        )
+# =====================================================
 
-    else:
+# APP
 
-        answer = (
-            f"Current result set contains "
-            f"{len(filtered):,} jobs."
-        )
+# =====================================================
 
-    st.info(answer)
+app = Dash(**name**)
 
-# ==================================================
-# SYSTEM STATUS
-# ==================================================
-with st.expander("System Status"):
+app.layout = dmc.MantineProvider(
 
-    st.write(
-        "Dataset Rows:",
-        len(df)
+```
+children=[
+
+    dmc.Container(
+
+        fluid=True,
+
+        children=[
+
+            dmc.Space(h=20),
+
+            dmc.Title(
+                "Workforce Intelligence Platform",
+                order=1
+            ),
+
+            dmc.Text(
+                "AI-driven labor market analytics"
+            ),
+
+            dmc.Space(h=20),
+
+            dmc.Grid(
+
+                children=[
+
+                    dmc.GridCol(
+                        dmc.Paper(
+                            [
+                                dmc.Text("Jobs"),
+                                dmc.Title(
+                                    f"{total_jobs:,}",
+                                    order=2
+                                )
+                            ],
+                            p="md",
+                            shadow="md"
+                        ),
+                        span=4
+                    ),
+
+                    dmc.GridCol(
+                        dmc.Paper(
+                            [
+                                dmc.Text("Companies"),
+                                dmc.Title(
+                                    f"{total_companies:,}",
+                                    order=2
+                                )
+                            ],
+                            p="md",
+                            shadow="md"
+                        ),
+                        span=4
+                    ),
+
+                    dmc.GridCol(
+                        dmc.Paper(
+                            [
+                                dmc.Text("Locations"),
+                                dmc.Title(
+                                    f"{total_locations:,}",
+                                    order=2
+                                )
+                            ],
+                            p="md",
+                            shadow="md"
+                        ),
+                        span=4
+                    )
+
+                ]
+
+            ),
+
+            dmc.Space(h=20),
+
+            dmc.Grid(
+
+                children=[
+
+                    dmc.GridCol(
+                        dcc.Graph(
+                            figure=company_chart
+                        ),
+                        span=6
+                    ),
+
+                    dmc.GridCol(
+                        dcc.Graph(
+                            figure=location_chart
+                        ),
+                        span=6
+                    )
+
+                ]
+
+            ),
+
+            dmc.Space(h=20),
+
+            dcc.Graph(
+                figure=cluster_chart
+            ),
+
+            dmc.Space(h=20),
+
+            dmc.Title(
+                "Data Explorer",
+                order=2
+            ),
+
+            dag.AgGrid(
+                rowData=df.head(5000).to_dict("records"),
+                columnDefs=column_defs,
+                defaultColDef={
+                    "resizable": True,
+                    "filter": True,
+                    "sortable": True
+                },
+                style={
+                    "height": "700px"
+                }
+            )
+
+        ]
+
     )
 
-    st.write(
-        "Cache TTL:",
-        "3600 seconds"
-    )
+]
+```
 
-    st.write(
-        "Dataset:",
-        HF_DATASET_ID
-    )
+)
 
-# ==================================================
-# FOOTER
-# ==================================================
-st.caption(
-    "Powered by Hugging Face • Streamlit • Plotly"
+server = app.server
+
+if **name** == "**main**":
+app.run(
+host="0.0.0.0",
+port=7860,
+debug=False
 )
