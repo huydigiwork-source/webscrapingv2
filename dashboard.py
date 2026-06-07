@@ -1,158 +1,161 @@
-# KPI SECTION
+import streamlit as st
+import pandas as pd
+from huggingface_hub import hf_hub_download
+import plotly.express as px
 
-c1,c2,c3,c4 = st.columns(4)
+# =========================
+# CONFIG
+# =========================
+HF_DATASET_ID = "Vincentran/careerviet-job-market"
+FILE_NAME = "jobs.parquet"
 
-metrics = [
-("Jobs",f"{len(filtered):,}"),
-("Companies",filtered["company"].nunique()),
-("Locations",filtered["location"].nunique()),
-("Coverage",f"{coverage}%")
-]
-
-for col,(title,value) in zip([c1,c2,c3,c4],metrics):
-with col:
-st.markdown(
-f""" <div class="metric-card"> <h4>{title}</h4> <h2>{value}</h2> </div>
-""",
-unsafe_allow_html=True
+st.set_page_config(
+    page_title="Workforce Intelligence",
+    page_icon="📊",
+    layout="wide"
 )
 
-st.markdown("<br>",unsafe_allow_html=True)
+# =========================
+# LOAD CSS
+# =========================
+def load_css():
+    with open("assets/style.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# TREEMAP
+load_css()
 
-st.subheader("Market Structure")
+# =========================
+# LOAD DATA
+# =========================
+@st.cache_data
+def load_data():
+    path = hf_hub_download(
+        repo_id=HF_DATASET_ID,
+        filename=FILE_NAME,
+        repo_type="dataset"
+    )
+    return pd.read_parquet(path)
 
-treemap_data = (
-filtered["company"]
-.value_counts()
-.head(30)
-.reset_index()
+df = load_data()
+
+if df.empty:
+    st.error("Empty dataset")
+    st.stop()
+
+# =========================
+# SIDEBAR
+# =========================
+st.sidebar.header("Control Panel")
+
+search = st.sidebar.text_input("Search Job")
+
+location = st.sidebar.selectbox(
+    "Location",
+    ["All"] + sorted(df["location"].dropna().unique().tolist())
 )
 
-treemap_data.columns=[
-"Company",
-"Jobs"
-]
-
-fig = px.treemap(
-treemap_data,
-path=["Company"],
-values="Jobs",
-color="Jobs"
+company = st.sidebar.selectbox(
+    "Company",
+    ["All"] + sorted(df["company"].dropna().unique().tolist())
 )
 
-fig.update_layout(
-height=600
-)
+top_n = st.sidebar.slider("Top N", 3, 20, 7)
 
-st.plotly_chart(
-fig,
-use_container_width=True
-)
+# =========================
+# FILTER SAFE ENGINE
+# =========================
+filtered = df.copy()
 
-# COMPANY + LOCATION
+if search and "title" in df.columns:
+    filtered = filtered[filtered["title"].str.contains(search, case=False, na=False)]
 
-left,right = st.columns(2)
+if location != "All":
+    filtered = filtered[filtered["location"] == location]
+
+if company != "All":
+    filtered = filtered[filtered["company"] == company]
+
+# =========================
+# KPI CARDS
+# =========================
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric("Jobs", len(filtered))
+c2.metric("Companies", filtered["company"].nunique())
+c3.metric("Locations", filtered["location"].nunique())
+c4.metric("Coverage", f"{len(filtered)/len(df)*100:.1f}%")
+
+st.divider()
+
+# =========================
+# CHARTS
+# =========================
+left, right = st.columns(2)
 
 with left:
+    st.subheader("Top Companies")
 
-```
-company_data=(
-    filtered["company"]
-    .value_counts()
-    .head(15)
-    .reset_index()
-)
-
-company_data.columns=[
-    "Company",
-    "Jobs"
-]
-
-fig=px.bar(
-    company_data,
-    x="Jobs",
-    y="Company",
-    orientation="h",
-    text="Jobs"
-)
-
-fig.update_layout(
-    height=600
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-```
+    comp = filtered["company"].value_counts().head(top_n)
+    fig = px.bar(
+        x=comp.values,
+        y=comp.index,
+        orientation="h"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 with right:
+    st.subheader("Top Locations")
 
-```
-location_data=(
-    filtered["location"]
-    .value_counts()
-    .head(15)
-    .reset_index()
-)
+    loc = filtered["location"].value_counts().head(top_n)
+    fig = px.bar(
+        x=loc.values,
+        y=loc.index,
+        orientation="h"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-location_data.columns=[
-    "Location",
-    "Jobs"
-]
+# =========================
+# PIE SECTION
+# =========================
+c1, c2 = st.columns(2)
 
-fig=px.pie(
-    location_data,
-    values="Jobs",
-    names="Location",
-    hole=.55
-)
+with c1:
+    if "location" in df.columns:
+        loc_pie = filtered["location"].value_counts().head(8)
+        fig = px.pie(
+            names=loc_pie.index,
+            values=loc_pie.values,
+            hole=0.5
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-fig.update_traces(
-    textinfo="percent+label"
-)
+with c2:
+    if "company" in df.columns:
+        comp_pie = filtered["company"].value_counts().head(8)
+        fig = px.pie(
+            names=comp_pie.index,
+            values=comp_pie.values,
+            hole=0.5
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-fig.update_layout(
-    height=600
-)
+# =========================
+# DATA TABLE
+# =========================
+st.subheader("Data Explorer")
+st.dataframe(filtered, use_container_width=True, height=500)
 
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-```
+# =========================
+# SIMPLE INSIGHT BOT
+# =========================
+st.subheader("Assistant")
 
-# SUNBURST
+q = st.text_input("Ask something")
 
-if "job_title" in filtered.columns:
-
-```
-tmp=(
-    filtered["job_title"]
-    .value_counts()
-    .head(50)
-    .reset_index()
-)
-
-tmp.columns=[
-    "Job",
-    "Count"
-]
-
-fig=px.sunburst(
-    tmp,
-    path=["Job"],
-    values="Count"
-)
-
-fig.update_layout(
-    height=700
-)
-
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-```
+if q:
+    if "company" in q.lower():
+        st.info(filtered["company"].value_counts().head(3).to_string())
+    elif "location" in q.lower():
+        st.info(filtered["location"].value_counts().head(3).to_string())
+    else:
+        st.info(f"{len(filtered)} jobs found")

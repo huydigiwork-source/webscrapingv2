@@ -1,54 +1,71 @@
-:root{
---primary:#4F46E5;
---secondary:#06B6D4;
---card-bg:rgba(255,255,255,0.08);
---border:rgba(255,255,255,0.15);
+/* =========================
+   GLOBAL DARK THEME
+========================= */
+body {
+    background-color: #0b0f1a;
+    color: #e6e6e6;
 }
 
-.main{
-background:
-radial-gradient(circle at top left,#1E1B4B,#0F172A);
+/* Streamlit main container */
+.block-container {
+    padding: 2rem 2.5rem;
 }
 
-section[data-testid="stSidebar"]{
-background:#111827;
+/* =========================
+   METRIC CARDS (Power BI style)
+========================= */
+div[data-testid="stMetric"] {
+    background: linear-gradient(145deg, #111827, #0f172a);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: 0.2s ease-in-out;
 }
 
-.block-container{
-padding-top:1rem;
-max-width:1500px;
+div[data-testid="stMetric"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.6);
 }
 
-.metric-card{
-background:var(--card-bg);
-backdrop-filter:blur(20px);
-border:1px solid var(--border);
-border-radius:18px;
-padding:20px;
-transition:.3s;
+/* Metric value */
+[data-testid="stMetricValue"] {
+    font-size: 22px;
+    font-weight: 700;
 }
 
-.metric-card:hover{
-transform:translateY(-6px);
-box-shadow:0 10px 30px rgba(79,70,229,.4);
+/* Metric label */
+[data-testid="stMetricLabel"] {
+    color: #9ca3af;
 }
 
-.dashboard-title{
-font-size:42px;
-font-weight:800;
-background:linear-gradient(90deg,#60A5FA,#A78BFA);
--webkit-background-clip:text;
--webkit-text-fill-color:transparent;
+/* =========================
+   DATAFRAME (Power BI grid)
+========================= */
+div[data-testid="stDataFrame"] {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #1f2937;
 }
 
-.chart-card{
-background:rgba(255,255,255,.05);
-border-radius:20px;
-padding:10px;
-border:1px solid rgba(255,255,255,.1);
+/* =========================
+   SIDEBAR
+========================= */
+section[data-testid="stSidebar"] {
+    background-color: #0a0f1f;
+    border-right: 1px solid #1f2937;
 }
 
-.stDataFrame{
-border-radius:16px;
-overflow:hidden;
+/* =========================
+   BUTTONS / INPUTS
+========================= */
+input, select {
+    border-radius: 8px !important;
+}
+
+/* =========================
+   HEADER TITLE
+========================= */
+h1, h2, h3 {
+    color: #f9fafb;
 }
