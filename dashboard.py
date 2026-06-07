@@ -6,7 +6,7 @@ from huggingface_hub import hf_hub_download
 # =========================
 # CONFIG
 # =========================
-HF_DATASET_ID = "Vincentran/careerviet-accounting-jobs"
+HF_DATASET_ID = "Vincentran/careerviet-job-market"
 HF_TOKEN = os.getenv("HF_TOKEN")
 FILE_NAME = "jobs.parquet"
 

@@ -9,8 +9,6 @@ def run(cmd):
 
 
 def get_changed_files():
-    import subprocess
-
     result = subprocess.run(
         ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
         capture_output=True,
@@ -26,20 +24,41 @@ def main():
     files = get_changed_files()
     print("Changed files:", files)
 
+    # =========================
+    # FLAGS DETECTION
+    # =========================
     data_related = any(f in files for f in ["scraper.py", "upload_hf.py"])
-    ui_related = any(f in files for f in ["dashboard.py", "requirements.txt"])
+    ui_related = any(f in files for f in ["dashboard.py", "requirements.txt", "deploy_space.py"])
 
-    if data_related:
-        print("DATA PIPELINE")
+    # =========================
+    # NEW: COMBINED CASE
+    # =========================
+    both_updated = data_related and ui_related
+
+    # =========================
+    # PIPELINE LOGIC
+    # =========================
+
+    if both_updated:
+        print("FULL PIPELINE (DATA + UI)")
         run("python scraper.py")
         run("python upload_hf.py")
-
-    if ui_related:
-        print("SPACE PIPELINE")
         run("python deploy_space.py")
+        print("DEPLOY COMPLETE: DATA + UI")
 
-    if not data_related and not ui_related:
-        print("NO ACTION")
+    else:
+
+        if data_related:
+            print("DATA PIPELINE")
+            run("python scraper.py")
+            run("python upload_hf.py")
+
+        if ui_related:
+            print("SPACE PIPELINE")
+            run("python deploy_space.py")
+
+        if not data_related and not ui_related:
+            print("NO ACTION")
 
     print("DONE PIPELINE")
 

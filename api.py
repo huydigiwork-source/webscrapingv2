@@ -9,7 +9,7 @@ app = FastAPI()
 
 # LOAD DATA
 df = pd.DataFrame(load_dataset(
-    "Vincentran/careerviet-accounting-jobs",
+    "Vincentran/careerviet-job-market",
     split="train"
 )).fillna("")
 
