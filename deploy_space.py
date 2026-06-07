@@ -9,7 +9,8 @@ api = HfApi(token=HF_TOKEN)
 FILES = [
     "dashboard.py",
     "requirements.txt",
-    "api.py"
+    "api.py",
+    "style.css"
 ]
 
 for file in FILES:
