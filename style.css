@@ -1,0 +1,94 @@
+:root{
+
+--bg:#0b1020;
+--panel:#12192d;
+--card:#172036;
+
+--text:#f5f7fa;
+--muted:#94a3b8;
+
+--accent:#3b82f6;
+
+}
+
+.stApp{
+background:var(--bg);
+}
+
+.block-container{
+max-width:1600px;
+padding-top:1rem;
+}
+
+/* Sidebar */
+
+[data-testid="stSidebar"]{
+background:var(--panel);
+border-right:1px solid #1f2a44;
+}
+
+/* Hero */
+
+.hero-card{
+padding:30px;
+border-radius:24px;
+background:
+linear-gradient(
+135deg,
+#1e293b,
+#111827
+);
+
+margin-bottom:20px;
+
+box-shadow:
+0 10px 40px rgba(0,0,0,.35);
+}
+
+.hero-card h1{
+font-size:38px;
+font-weight:700;
+margin:0;
+}
+
+.hero-card p{
+margin-top:10px;
+color:var(--muted);
+}
+
+/* KPI */
+
+div[data-testid="stMetric"]{
+
+background:var(--card);
+
+padding:18px;
+
+border-radius:18px;
+
+border:1px solid #26314f;
+
+box-shadow:
+0 6px 20px rgba(0,0,0,.25);
+}
+
+/* Charts */
+
+.js-plotly-plot{
+border-radius:18px;
+overflow:hidden;
+}
+
+/* Dataframe */
+
+[data-testid="stDataFrame"]{
+border-radius:18px;
+overflow:hidden;
+}
+
+/* Buttons */
+
+.stButton button{
+border-radius:12px;
+height:42px;
+}
