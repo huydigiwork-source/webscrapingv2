@@ -1,94 +1,89 @@
-:root{
-
---bg:#0b1020;
---panel:#12192d;
---card:#172036;
-
---text:#f5f7fa;
---muted:#94a3b8;
-
---accent:#3b82f6;
-
-}
-
-.stApp{
-background:var(--bg);
-}
+/* ==================================================
+   GLOBAL
+================================================== */
 
 .block-container{
-max-width:1600px;
-padding-top:1rem;
+    padding-top: 1rem;
+    max-width: 1600px;
 }
 
-/* Sidebar */
+/* ==================================================
+   HERO
+================================================== */
 
-[data-testid="stSidebar"]{
-background:var(--panel);
-border-right:1px solid #1f2a44;
+.hero{
+    background: linear-gradient(
+        135deg,
+        #2563eb,
+        #1e40af
+    );
+
+    padding: 28px;
+
+    border-radius: 18px;
+
+    margin-bottom: 20px;
+
+    color: white;
 }
 
-/* Hero */
-
-.hero-card{
-padding:30px;
-border-radius:24px;
-background:
-linear-gradient(
-135deg,
-#1e293b,
-#111827
-);
-
-margin-bottom:20px;
-
-box-shadow:
-0 10px 40px rgba(0,0,0,.35);
+.hero h1{
+    margin: 0;
+    font-size: 36px;
+    font-weight: 700;
 }
 
-.hero-card h1{
-font-size:38px;
-font-weight:700;
-margin:0;
+.hero p{
+    margin-top: 8px;
+    opacity: 0.9;
 }
 
-.hero-card p{
-margin-top:10px;
-color:var(--muted);
-}
-
-/* KPI */
+/* ==================================================
+   KPI
+================================================== */
 
 div[data-testid="stMetric"]{
 
-background:var(--card);
+    background: white;
 
-padding:18px;
+    border-radius: 16px;
 
-border-radius:18px;
+    padding: 14px;
 
-border:1px solid #26314f;
+    border: 1px solid #e5e7eb;
 
-box-shadow:
-0 6px 20px rgba(0,0,0,.25);
+    box-shadow:
+        0 4px 12px rgba(0,0,0,0.08);
 }
 
-/* Charts */
+/* ==================================================
+   SIDEBAR
+================================================== */
 
-.js-plotly-plot{
-border-radius:18px;
-overflow:hidden;
+[data-testid="stSidebar"]{
+
+    border-right:
+        1px solid #e5e7eb;
 }
 
-/* Dataframe */
+/* ==================================================
+   TABLE
+================================================== */
 
 [data-testid="stDataFrame"]{
-border-radius:18px;
-overflow:hidden;
+
+    border-radius: 16px;
+
+    overflow: hidden;
 }
 
-/* Buttons */
+/* ==================================================
+   PLOTLY
+================================================== */
 
-.stButton button{
-border-radius:12px;
-height:42px;
+.js-plotly-plot{
+
+    border-radius: 16px;
+
+    overflow: hidden;
 }
