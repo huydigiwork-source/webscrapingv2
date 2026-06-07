@@ -28,7 +28,7 @@ def main():
     # FLAGS DETECTION
     # =========================
     data_related = any(f in files for f in ["scraper.py", "upload_hf.py"])
-    ui_related = any(f in files for f in ["dashboard.py", "requirements.txt", "deploy_space.py"])
+    ui_related = any(f in files for f in ["dashboard.py", "requirements.txt", "deploy_space.py", "style.css"])
 
     # =========================
     # NEW: COMBINED CASE
