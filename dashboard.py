@@ -1,7 +1,14 @@
+import os
 import streamlit as st
 import pandas as pd
+
 from pathlib import Path
-from huggingface_hub import hf_hub_download
+
+from huggingface_hub import (
+    hf_hub_download,
+    HfApi
+)
+
 import plotly.express as px
 
 # ==================================================
@@ -13,6 +20,19 @@ st.set_page_config(
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
+)
+
+# ==================================================
+# HF CONFIG
+# ==================================================
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+HF_DATASET_ID = "Vincentran/careerviet-job-market"
+FILE_NAME = "jobs.parquet"
+
+api = HfApi(
+    token=HF_TOKEN
 )
 
 # ==================================================
@@ -29,78 +49,110 @@ if css_file.exists():
         )
 
 # ==================================================
-# CONFIG
+# DATA LOADER
 # ==================================================
 
-HF_DATASET_ID = "Vincentran/careerviet-job-market"
-FILE_NAME = "jobs.parquet"
-
-# ==================================================
-# DATA
-# ==================================================
-
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(
+    ttl=3600,
+    show_spinner=False
+)
 def load_data():
 
     file_path = hf_hub_download(
         repo_id=HF_DATASET_ID,
         filename=FILE_NAME,
-        repo_type="dataset"
+        repo_type="dataset",
+        token=HF_TOKEN
     )
 
-    return pd.read_parquet(file_path)
+    return pd.read_parquet(
+        file_path
+    )
 
-df = load_data()
+# ==================================================
+# LOAD DATA
+# ==================================================
+
+try:
+
+    df = load_data()
+
+except Exception as e:
+
+    st.error(
+        f"Failed to load dataset: {e}"
+    )
+
+    st.stop()
 
 if df.empty:
-    st.error("Dataset is empty")
+
+    st.warning(
+        "Dataset is empty."
+    )
+
     st.stop()
 
 # ==================================================
 # SAFE COLUMNS
 # ==================================================
 
-for col in ["title", "company", "location"]:
+for col in [
+    "title",
+    "company",
+    "location"
+]:
     if col not in df.columns:
         df[col] = ""
 
 # ==================================================
-# HERO
+# HEADER
 # ==================================================
 
-st.markdown("""
-<div class="hero">
-    <h1>Workforce Intelligence Dashboard</h1>
-    <p>Interactive Labor Market Analytics Platform</p>
-</div>
-""", unsafe_allow_html=True)
+st.title(
+    "📊 Workforce Intelligence Dashboard"
+)
+
+st.caption(
+    "Powered by Hugging Face Dataset"
+)
 
 # ==================================================
-# FILTERS
+# SIDEBAR
 # ==================================================
 
 with st.sidebar:
 
-    st.header("Filters")
+    st.header(
+        "Filters"
+    )
 
     search = st.text_input(
-        "Search Job"
+        "Search Jobs"
     )
 
-    locations = ["All"] + sorted(
-        df["location"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
+    locations = (
+        ["All"]
+        +
+        sorted(
+            df["location"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
     )
 
-    companies = ["All"] + sorted(
-        df["company"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
+    companies = (
+        ["All"]
+        +
+        sorted(
+            df["company"]
+            .dropna()
+            .astype(str)
+            .unique()
+            .tolist()
+        )
     )
 
     location = st.selectbox(
@@ -114,7 +166,7 @@ with st.sidebar:
     )
 
 # ==================================================
-# FILTER ENGINE
+# FILTER
 # ==================================================
 
 filtered = df.copy()
@@ -134,13 +186,15 @@ if search:
 if location != "All":
 
     filtered = filtered[
-        filtered["location"] == location
+        filtered["location"]
+        == location
     ]
 
 if company != "All":
 
     filtered = filtered[
-        filtered["company"] == company
+        filtered["company"]
+        == company
     ]
 
 # ==================================================
@@ -148,47 +202,47 @@ if company != "All":
 # ==================================================
 
 coverage = round(
-    len(filtered) / len(df) * 100,
+    len(filtered)
+    / len(df)
+    * 100,
     1
 )
 
 c1, c2, c3, c4 = st.columns(4)
 
-with c1:
-    st.metric(
-        "Jobs",
-        f"{len(filtered):,}"
-    )
+c1.metric(
+    "Jobs",
+    f"{len(filtered):,}"
+)
 
-with c2:
-    st.metric(
-        "Companies",
-        filtered["company"].nunique()
-    )
+c2.metric(
+    "Companies",
+    filtered["company"].nunique()
+)
 
-with c3:
-    st.metric(
-        "Locations",
-        filtered["location"].nunique()
-    )
+c3.metric(
+    "Locations",
+    filtered["location"].nunique()
+)
 
-with c4:
-    st.metric(
-        "Coverage",
-        f"{coverage}%"
-    )
+c4.metric(
+    "Coverage",
+    f"{coverage}%"
+)
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.divider()
 
 # ==================================================
-# CHARTS
+# TOP COMPANIES
 # ==================================================
 
 left, right = st.columns(2)
 
 with left:
 
-    st.subheader("Top Companies")
+    st.subheader(
+        "Top Companies"
+    )
 
     company_data = (
         filtered["company"]
@@ -206,12 +260,7 @@ with left:
         company_data,
         x="Jobs",
         y="Company",
-        orientation="h",
-        template="plotly_white"
-    )
-
-    fig.update_layout(
-        height=450
+        orientation="h"
     )
 
     st.plotly_chart(
@@ -221,7 +270,9 @@ with left:
 
 with right:
 
-    st.subheader("Top Locations")
+    st.subheader(
+        "Top Locations"
+    )
 
     location_data = (
         filtered["location"]
@@ -239,12 +290,7 @@ with right:
         location_data,
         x="Jobs",
         y="Location",
-        orientation="h",
-        template="plotly_white"
-    )
-
-    fig.update_layout(
-        height=450
+        orientation="h"
     )
 
     st.plotly_chart(
@@ -253,73 +299,45 @@ with right:
     )
 
 # ==================================================
-# DISTRIBUTION
+# TABLE
 # ==================================================
 
-st.subheader("Market Distribution")
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    pie_data = (
-        filtered["location"]
-        .value_counts()
-        .head(8)
-    )
-
-    fig = px.pie(
-        names=pie_data.index,
-        values=pie_data.values,
-        hole=0.55
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-with col2:
-
-    pie_data = (
-        filtered["company"]
-        .value_counts()
-        .head(8)
-    )
-
-    fig = px.pie(
-        names=pie_data.index,
-        values=pie_data.values,
-        hole=0.55
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-# ==================================================
-# DATA EXPLORER
-# ==================================================
-
-st.subheader("Data Explorer")
+st.subheader(
+    "Data Explorer"
+)
 
 st.dataframe(
     filtered.head(1000),
-    use_container_width=True,
-    height=500
+    use_container_width=True
 )
 
-st.caption(
-    f"Showing {min(len(filtered),1000):,} / {len(filtered):,} rows"
-)
+# ==================================================
+# STATUS
+# ==================================================
+
+with st.expander(
+    "System Status"
+):
+
+    st.write(
+        "HF Token Loaded:",
+        bool(HF_TOKEN)
+    )
+
+    st.write(
+        "Dataset:",
+        HF_DATASET_ID
+    )
+
+    st.write(
+        "Rows:",
+        len(df)
+    )
 
 # ==================================================
 # FOOTER
 # ==================================================
 
-st.markdown("---")
-
 st.caption(
-    "Powered by Hugging Face • Plotly • Streamlit"
+    "Hugging Face • Streamlit • Plotly"
 )
