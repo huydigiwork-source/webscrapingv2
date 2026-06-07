@@ -2,33 +2,48 @@ import streamlit as st
 import pandas as pd
 import os
 from huggingface_hub import hf_hub_download
+import plotly.express as px
+
+# streamlit-extras UI enhancer
+from streamlit_extras.colored_header import colored_header
+from streamlit_extras.metric_cards import style_metric_cards
 
 # =========================
 # CONFIG
 # =========================
 HF_DATASET_ID = "Vincentran/careerviet-job-market"
-HF_TOKEN = os.getenv("HF_TOKEN")
 FILE_NAME = "jobs.parquet"
 
 # =========================
-# PAGE CONFIG (UI UPGRADE)
+# PAGE CONFIG
 # =========================
 st.set_page_config(
-    page_title="AI Job Intelligence Platform",
-    page_icon="🤖",
+    page_title="Workforce Intelligence Dashboard",
+    page_icon="🧠",
     layout="wide"
 )
 
 # =========================
-# CUSTOM UI STYLE (CLEAN MODERN LOOK)
+# MODERN DARK THEME
 # =========================
 st.markdown("""
-    <style>
-        .main {background-color: #0f1117;}
-        h1, h2, h3 {color: #00d4ff;}
-        .stMetric {background-color: #1a1d25; padding: 10px; border-radius: 10px;}
-        .block-container {padding-top: 2rem;}
-    </style>
+<style>
+    html, body, [class*="css"] {
+        background-color: #0b0f1a;
+        color: #e6e6e6;
+    }
+
+    .block-container {
+        padding: 2rem;
+    }
+
+    div[data-testid="stMetric"] {
+        background-color: #111827;
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+</style>
 """, unsafe_allow_html=True)
 
 # =========================
@@ -36,146 +51,157 @@ st.markdown("""
 # =========================
 @st.cache_data
 def load_data():
-    try:
-        file_path = hf_hub_download(
-            repo_id=HF_DATASET_ID,
-            filename=FILE_NAME,
-            repo_type="dataset",
-            token=HF_TOKEN
-        )
-        return pd.read_parquet(file_path)
-
-    except Exception as e:
-        st.error(f"❌ Failed to load HF dataset: {e}")
-        return pd.DataFrame()
-
+    path = hf_hub_download(
+        repo_id=HF_DATASET_ID,
+        filename=FILE_NAME,
+        repo_type="dataset"
+    )
+    return pd.read_parquet(path)
 
 df = load_data()
 
-# =========================
-# HEADER (AI UX/UI)
-# =========================
-st.title("🤖 AI Job Intelligence System")
-st.caption("AI Agent • Job Search • Insights • Analytics • Chatbot")
-
 if df.empty:
-    st.warning("No data available")
+    st.error("Dataset is empty")
     st.stop()
 
 # =========================
-# AI AGENT SIDEBAR
+# HEADER (MODERN)
 # =========================
-st.sidebar.header("🧠 AI Agent Control Center")
-
-query = st.sidebar.text_input("🔎 AI Job Search")
-
-location_filter = st.sidebar.selectbox(
-    "📍 Location Filter",
-    ["All"] + sorted(df["location"].dropna().unique().tolist()) if "location" in df else ["All"]
-)
-
-company_filter = st.sidebar.selectbox(
-    "🏢 Company Filter",
-    ["All"] + sorted(df["company"].dropna().unique().tolist()) if "company" in df else ["All"]
+colored_header(
+    label="Workforce Intelligence Dashboard",
+    description="Real-time labor market analytics • AI insights • interactive exploration",
+    color_name="blue-70"
 )
 
 # =========================
-# FILTER ENGINE (AI JOB SEARCH LOGIC)
+# SIDEBAR (AI SLICERS)
 # =========================
-filtered_df = df.copy()
+st.sidebar.header("⚙️ Control Panel")
 
-if query:
-    filtered_df = filtered_df[
-        filtered_df["title"].str.contains(query, case=False, na=False)
-    ]
+search = st.sidebar.text_input("🔍 Job Search")
 
-if location_filter != "All":
-    filtered_df = filtered_df[filtered_df["location"] == location_filter]
+location = st.sidebar.selectbox(
+    "📍 Location",
+    ["All"] + sorted(df["location"].dropna().unique()) if "location" in df else ["All"]
+)
 
-if company_filter != "All":
-    filtered_df = filtered_df[filtered_df["company"] == company_filter]
+company = st.sidebar.selectbox(
+    "🏢 Company",
+    ["All"] + sorted(df["company"].dropna().unique()) if "company" in df else ["All"]
+)
+
+top_n = st.sidebar.slider("📊 Top N Insights", 3, 20, 7)
 
 # =========================
-# KPI DASHBOARD (AI ANALYTICS)
+# FILTER ENGINE
 # =========================
-st.subheader("📊 AI Analytics Overview")
+filtered = df.copy()
 
-col1, col2, col3, col4 = st.columns(4)
+if search:
+    filtered = filtered[filtered["title"].str.contains(search, case=False, na=False)]
 
-col1.metric("Total Jobs", len(filtered_df))
-col2.metric("Companies", filtered_df["company"].nunique() if "company" in df else 0)
-col3.metric("Locations", filtered_df["location"].nunique() if "location" in df else 0)
-col4.metric("Active Filters", 2)
+if location != "All":
+    filtered = filtered[filtered["location"] == location]
+
+if company != "All":
+    filtered = filtered[filtered["company"] == company]
+
+# =========================
+# KPI DASHBOARD
+# =========================
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric("Total Jobs", len(filtered))
+c2.metric("Companies", filtered["company"].nunique())
+c3.metric("Locations", filtered["location"].nunique())
+c4.metric("Coverage", f"{len(filtered)/len(df)*100:.1f}%")
+
+style_metric_cards()
 
 st.divider()
 
 # =========================
-# AI INSIGHTS ENGINE
+# ANALYTICS CHARTS
 # =========================
-st.subheader("🧠 AI Insights Engine")
+left, right = st.columns(2)
 
-insight_col1, insight_col2 = st.columns(2)
+with left:
+    st.subheader("🏢 Top Companies")
 
-with insight_col1:
-    st.write("🔥 Top Companies Hiring")
-    if "company" in filtered_df:
-        st.dataframe(filtered_df["company"].value_counts().head(5))
+    comp = filtered["company"].value_counts().head(top_n)
+    fig = px.bar(
+        comp,
+        x=comp.values,
+        y=comp.index,
+        orientation="h",
+        color=comp.values,
+        color_continuous_scale="Blues"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-with insight_col2:
-    st.write("📍 Top Locations")
-    if "location" in filtered_df:
-        st.dataframe(filtered_df["location"].value_counts().head(5))
+with right:
+    st.subheader("📍 Top Locations")
 
-# =========================
-# AI CHARTS (MODERN VISUALS)
-# =========================
-st.subheader("📈 AI Charts")
-
-if "location" in filtered_df:
-    loc_data = filtered_df["location"].value_counts().head(7).reset_index()
-    loc_data.columns = ["location", "count"]
-
-    st.bar_chart(loc_data.set_index("location"))
-
-if "company" in filtered_df:
-    comp_data = filtered_df["company"].value_counts().head(7).reset_index()
-    comp_data.columns = ["company", "count"]
-
-    st.bar_chart(comp_data.set_index("company"))
-
-# =========================
-# AI JOB TABLE
-# =========================
-st.subheader("🔎 AI Job Search Results")
-
-st.dataframe(filtered_df, use_container_width=True)
+    loc = filtered["location"].value_counts().head(top_n)
+    fig = px.bar(
+        loc,
+        x=loc.values,
+        y=loc.index,
+        orientation="h",
+        color=loc.values,
+        color_continuous_scale="Purples"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 # =========================
-# AI CHATBOT (LIGHTWEIGHT)
+# DISTRIBUTION INSIGHTS
 # =========================
-st.subheader("💬 AI Chat Assistant")
+st.subheader("📊 Market Distribution")
 
-if "chat" not in st.session_state:
-    st.session_state.chat = []
+c1, c2 = st.columns(2)
 
-user_input = st.text_input("Ask AI about jobs")
+with c1:
+    if "location" in filtered:
+        fig = px.pie(
+            names=filtered["location"].value_counts().head(8).index,
+            values=filtered["location"].value_counts().head(8).values,
+            hole=0.5
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-if user_input:
-    if "company" in user_input.lower():
-        answer = f"Top companies: {', '.join(filtered_df['company'].value_counts().head(3).index)}"
-    elif "location" in user_input.lower():
-        answer = f"Top locations: {', '.join(filtered_df['location'].value_counts().head(3).index)}"
+with c2:
+    if "company" in filtered:
+        fig = px.pie(
+            names=filtered["company"].value_counts().head(8).index,
+            values=filtered["company"].value_counts().head(8).values,
+            hole=0.5
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+# =========================
+# DATA EXPLORER
+# =========================
+st.subheader("🔎 Data Explorer")
+st.dataframe(filtered, use_container_width=True, height=500)
+
+# =========================
+# SIMPLE AI ASSISTANT (NO LABEL AI)
+# =========================
+st.subheader("💬 Assistant")
+
+user_q = st.text_input("Ask about job market")
+
+if user_q:
+    if "company" in user_q.lower():
+        answer = filtered["company"].value_counts().head(3).to_string()
+    elif "location" in user_q.lower():
+        answer = filtered["location"].value_counts().head(3).to_string()
     else:
-        answer = f"I found {len(filtered_df)} relevant jobs for your query."
+        answer = f"{len(filtered)} jobs found."
 
-    st.session_state.chat.append((user_input, answer))
-
-for q, a in reversed(st.session_state.chat):
-    st.markdown(f"**🧑 You:** {q}")
-    st.markdown(f"**🤖 AI:** {a}")
-    st.markdown("---")
+    st.info(answer)
 
 # =========================
 # FOOTER
 # =========================
-st.caption("🚀 Powered by AI Agent • HuggingFace Dataset • Streamlit • Analytics Engine")
+st.caption("Powered by HuggingFace • Streamlit • Plotly • Analytics Engine")

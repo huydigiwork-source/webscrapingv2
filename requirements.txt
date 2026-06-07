@@ -6,7 +6,7 @@ datasets
 huggingface_hub
 lxml
 urllib3
-streamlit
+streamlit==1.37.0
 matplotlib
 sentence-transformers
 faiss-cpu
@@ -17,3 +17,4 @@ plotly
 scikit-learn
 pyarrow
 fastparquet
+streamlit-extras
